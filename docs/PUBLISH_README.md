@@ -1,4 +1,4 @@
-A plugin to publish artifacts and build info metadata to Jfrog artifactory.
+A plugin to publish build-info metadata to JFrog Artifactory (no JFrog CLI required).
 
 Run the following script to install git-leaks support to this repo.
 ```
@@ -20,11 +20,10 @@ Build the plugin image:
 docker build -t plugins/artifactory  -f docker/Dockerfile .
 ```
 
-#  Publish artifacts and build info to Jfrog Artifactory
-This step publishes the artifacts of a build like the binaries, other
-artifacts produced in the build and build info metadata to Artifactory 
+#  Publish build info to JFrog Artifactory
+This step publishes build-info metadata to Artifactory. The plugin accumulates build-info partials from previous steps (upload, download, add-build-dependencies) and aggregates them for publish.
 
-### Publish artifacts and build info metadata to Jfrog Artifactory
+### Publish build-info metadata
 ```yaml
 - step:
     type: Plugin
@@ -34,14 +33,30 @@ artifacts produced in the build and build info metadata to Artifactory
       connectorRef: account.harnessImage
       image: plugins/artifactory:linux-amd64
       settings:
-        command: publish
+        command: publish-build-info
         url: https://URL.jfrog.io
         username: user
         password: <+secrets.getValue("jfrog_user")>
         build_name: gol-01
         build_number: 0.03.01
-        deploy_release_repo: mvn_repo_deploy_releases
-        deploy_snapshot_repo: mvn_repo_deploy_releases
+        cleanup_after_publish: true
+
+### Cleanup local build-info cache
+Use the cleanup command to remove local cached build-info for a build.
+
+```yaml
+- step:
+    type: Plugin
+    name: CleanBuildInfo
+    identifier: CleanBuildInfo
+    spec:
+      connectorRef: account.harnessImage
+      image: plugins/artifactory:linux-amd64
+      settings:
+        command: cleanup
+        build_name: gol-01
+        build_number: 0.03.01
+```
 ```
 
 ## Community and Support

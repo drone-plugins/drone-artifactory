@@ -5,17 +5,19 @@
 package plugin
 
 import (
-	"context"
-	"fmt"
-	"net/url"
-	"os"
-	"os/exec"
-	"path/filepath"
-	"runtime"
-	"strconv"
-	"strings"
+    "context"
+    "fmt"
+    "net/url"
+    "os"
+    "os/exec"
+    "runtime"
+    "strconv"
+    "strings"
 
-	"github.com/sirupsen/logrus"
+    artifactory "github.com/jfrog/jfrog-client-go/artifactory"
+    services "github.com/jfrog/jfrog-client-go/artifactory/services"
+    artutils "github.com/jfrog/jfrog-client-go/artifactory/services/utils"
+    "github.com/sirupsen/logrus"
 )
 
 const (
@@ -53,8 +55,9 @@ type Args struct {
 	PEMFilePath      string `envconfig:"PLUGIN_PEM_FILE_PATH"`
 	BuildNumber      string `envconfig:"PLUGIN_BUILD_NUMBER"`
 	BuildName        string `envconfig:"PLUGIN_BUILD_NAME"`
-	PublishBuildInfo bool   `envconfig:"PLUGIN_PUBLISH_BUILD_INFO"`
-	EnableProxy      string `envconfig:"PLUGIN_ENABLE_PROXY"`
+    PublishBuildInfo bool   `envconfig:"PLUGIN_PUBLISH_BUILD_INFO"`
+    CleanupAfterPublish string `envconfig:"PLUGIN_CLEANUP_AFTER_PUBLISH"`
+    EnableProxy      string `envconfig:"PLUGIN_ENABLE_PROXY"`
 
 	// RT commands
 	BuildTool string `envconfig:"PLUGIN_BUILD_TOOL"`
@@ -115,161 +118,53 @@ func Exec(ctx context.Context, args Args) error {
 		setSecureConnectProxies()
 	}
 
-	// write code here
-	if args.URL == "" {
-		return fmt.Errorf("JFrog Artifactory URL must be set, or anonymous access is not permitted")
-	}
+    // write code here
+    if args.URL == "" {
+        return fmt.Errorf("JFrog Artifactory URL must be set, or anonymous access is not permitted")
+    }
 
-	cmdArgs := []string{getJfrogBin(), "rt", "u", fmt.Sprintf("--url %s", args.URL)}
-	if args.Retries != 0 {
-		cmdArgs = append(cmdArgs, fmt.Sprintf("--retries=%d", args.Retries))
-	}
+    if err := runUpload(args); err != nil {
+        return err
+    }
 
-	// Set authentication params
-	cmdArgs, error := setAuthParams(cmdArgs, args)
-	if error != nil {
-		return error
-	}
+    // Publish build-info if requested.
+    if args.PublishBuildInfo {
+        if err := publishBuildInfo(args); err != nil {
+            return err
+        }
+    }
 
-	flat := parseBoolOrDefault(false, args.Flat)
-	cmdArgs = append(cmdArgs, fmt.Sprintf("--flat=%s", strconv.FormatBool(flat)))
-
-	if args.Threads > 0 {
-		cmdArgs = append(cmdArgs, fmt.Sprintf("--threads=%d", args.Threads))
-	}
-	// Set insecure flag
-	insecure := parseBoolOrDefault(false, args.Insecure)
-	if insecure {
-		cmdArgs = append(cmdArgs, "--insecure-tls")
-	}
-
-	// Add --build-number and --build-name flags if provided
-	if args.BuildNumber != "" {
-		cmdArgs = append(cmdArgs, fmt.Sprintf("--build-number=%s", args.BuildNumber))
-	}
-	if args.BuildName != "" {
-		cmdArgs = append(cmdArgs, fmt.Sprintf("--build-name='%s'", args.BuildName))
-	}
-
-	// create pem file
-	if args.PEMFileContents != "" && !insecure {
-		var path string
-		// figure out path to write pem file
-		if args.PEMFilePath == "" {
-			if runtime.GOOS == "windows" {
-				path = "C:/users/ContainerAdministrator/.jfrog/security/certs/cert.pem"
-			} else {
-				path = "/root/.jfrog/security/certs/cert.pem"
-			}
-		} else {
-			path = args.PEMFilePath
-		}
-		fmt.Printf("Creating pem file at %q\n", path)
-		// write pen contents to path
-		if _, err := os.Stat(path); os.IsNotExist(err) {
-			// remove filename from path
-			dir := filepath.Dir(path)
-			pemFolderErr := os.MkdirAll(dir, 0700)
-			if pemFolderErr != nil {
-				return fmt.Errorf("error creating pem folder: %s", pemFolderErr)
-			}
-			// write pem contents
-			pemWriteErr := os.WriteFile(path, []byte(args.PEMFileContents), 0600)
-			if pemWriteErr != nil {
-				return fmt.Errorf("error writing pem file: %s", pemWriteErr)
-			}
-			fmt.Printf("Successfully created pem file at %q\n", path)
-		}
-	}
-	// Take in spec file or use source/target arguments
-	if args.Spec != "" {
-		cmdArgs = append(cmdArgs, fmt.Sprintf("--spec=%s", args.Spec))
-		if args.SpecVars != "" {
-			cmdArgs = append(cmdArgs, fmt.Sprintf("--spec-vars='%s'", args.SpecVars))
-		}
-	} else {
-		filteredTargetProps := filterTargetProps(args.TargetProps)
-		if filteredTargetProps != "" {
-			cmdArgs = append(cmdArgs, fmt.Sprintf("--target-props='%s'", filteredTargetProps))
-		}
-		if args.Source == "" {
-			return fmt.Errorf("source file needs to be set")
-		}
-		if args.Target == "" {
-			return fmt.Errorf("target path needs to be set")
-		}
-		cmdArgs = append(cmdArgs, fmt.Sprintf("\"%s\"", args.Source), args.Target)
-	}
-
-	cmdStr := strings.Join(cmdArgs[:], " ")
-
-	shell, shArg := getShell()
-
-	cmd := exec.Command(shell, shArg, cmdStr)
-	cmd.Env = os.Environ()
-	cmd.Env = append(cmd.Env, "JFROG_CLI_OFFER_CONFIG=false")
-
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	trace(cmd)
-
-	err := cmd.Run()
-	if err != nil {
-		return err
-	}
-
-	// Call publishBuildInfo if PLUGIN_PUBLISH_BUILD_INFO is set to true
-	if args.PublishBuildInfo {
-		if err := publishBuildInfo(args); err != nil {
-			return err
-		}
-	}
-
-	return nil
+    return nil
 }
 
 func publishBuildInfo(args Args) error {
-	if args.BuildName == "" || args.BuildNumber == "" {
-		return fmt.Errorf("both build name and build number need to be set when publishing build info")
-	}
+    if args.BuildName == "" || args.BuildNumber == "" {
+        return fmt.Errorf("both build name and build number need to be set when publishing build info")
+    }
 
-	sanitizedURL, err := sanitizeURL(args.URL)
-	if err != nil {
-		return err
-	}
+    sanitizedURL, err := sanitizeURL(args.URL)
+    if err != nil {
+        return err
+    }
 
-	publishCmdArgs := []string{
-		getJfrogBin(),
-		"rt",
-		"build-publish",
-		"\"" + args.BuildName + "\"",
-		"\"" + args.BuildNumber + "\"",
-		fmt.Sprintf("--url=%s", sanitizedURL),
-	}
-
-	if args.AccessToken != "" {
-		publishCmdArgs = append(publishCmdArgs, fmt.Sprintf("--access-token=%sPLUGIN_ACCESS_TOKEN", getEnvPrefix()))
-	} else if args.Username != "" && args.Password != "" {
-		publishCmdArgs = append(publishCmdArgs, fmt.Sprintf("--user=%sPLUGIN_USERNAME", getEnvPrefix()))
-		publishCmdArgs = append(publishCmdArgs, fmt.Sprintf("--password=%sPLUGIN_PASSWORD", getEnvPrefix()))
-	} else {
-		return fmt.Errorf("either access token or username/password need to be set for publishing build info")
-	}
-
-	publishCmdStr := strings.Join(publishCmdArgs, " ")
-	shell, shArg := getShell()
-	publishCmd := exec.Command(shell, shArg, publishCmdStr)
-	publishCmd.Env = os.Environ()
-	publishCmd.Env = append(publishCmd.Env, "JFROG_CLI_OFFER_CONFIG=false")
-	publishCmd.Stdout = os.Stdout
-	publishCmd.Stderr = os.Stderr
-	trace(publishCmd)
-
-	if err := publishCmd.Run(); err != nil {
-		return fmt.Errorf("error publishing build info: %s", err)
-	}
-
-	return nil
+    // Aggregate partials and publish via SDK
+    args.URL = sanitizedURL
+    rt, cleanup, err := createServiceManager(args)
+    if err != nil {
+        return err
+    }
+    defer cleanup()
+    bim := NewBuildInfoManager(rt)
+    if err := bim.PublishAggregated(args); err != nil {
+        return fmt.Errorf("error publishing build info: %s", err)
+    }
+    // Optional auto-cleanup after successful publish
+    if parseBoolOrDefault(false, args.CleanupAfterPublish) {
+        if err := bim.Clean(args); err != nil {
+            logrus.Printf("warning: failed to cleanup build-info cache: %v", err)
+        }
+    }
+    return nil
 }
 
 // Function to filter TargetProps based on criteria
@@ -335,35 +230,8 @@ func setAuthParams(cmdArgs []string, args Args) ([]string, error) {
 	return cmdArgs, nil
 }
 
-func getShell() (string, string) {
-	if runtime.GOOS == "windows" {
-		// First check for PowerShell Core (pwsh.exe) which is used in PowerShell Nanoserver
-		if _, err := os.Stat("C:/Program Files/PowerShell/pwsh.exe"); err == nil {
-			return "pwsh", "-Command"
-		}
-
-		// Fall back to traditional PowerShell
-		return "powershell", "-Command"
-	}
-
-	return "sh", "-c"
-}
-
-func getJfrogBin() string {
-	if runtime.GOOS == "windows" {
-		if _, err := os.Stat("C:/bin/jfrog.exe"); err == nil {
-			return "C:/bin/jfrog.exe"
-		}
-	}
-	return "jf"
-}
-
-func getEnvPrefix() string {
-	if runtime.GOOS == "windows" {
-		return "$Env:"
-	}
-	return "$"
-}
+// getShell, getJfrogBin and getEnvPrefix are no longer needed once CLI usage is fully removed.
+// They are intentionally removed in favor of jfrog-client-go.
 
 func parseBoolOrDefault(defaultValue bool, s string) (result bool) {
 	var err error
@@ -378,7 +246,8 @@ func parseBoolOrDefault(defaultValue bool, s string) (result bool) {
 // trace writes each command to stdout with the command wrapped in an xml
 // tag so that it can be extracted and displayed in the logs.
 func trace(cmd *exec.Cmd) {
-	fmt.Fprintf(os.Stdout, "+ %s\n", strings.Join(cmd.Args, " "))
+    // retained for other shell-based flows (maven/gradle); to be removed when refactoring them
+    fmt.Fprintf(os.Stdout, "+ %s\n", strings.Join(cmd.Args, " "))
 }
 
 func setSecureConnectProxies() {
@@ -396,4 +265,87 @@ func copyEnvVariableIfExists(src string, dest string) {
 	if err != nil {
 		logrus.Printf("Failed to copy env variable from %s to %s with error %v", src, dest, err)
 	}
+}
+
+// runUploadWithSDK performs generic upload using jfrog-client-go.
+func runUpload(args Args) error {
+    rt, cleanup, err := createServiceManager(args)
+    if err != nil {
+        return err
+    }
+    defer cleanup()
+
+    var params []services.UploadParams
+    // Build params from spec or source/target
+    if args.Spec != "" || args.SpecPath != "" {
+        var fs *FileSpec
+        if args.Spec != "" {
+            content := applySpecVars(args.Spec, args.SpecVars)
+            fs, err = parseFileSpecFromString(content)
+        } else {
+            b, rErr := os.ReadFile(args.SpecPath)
+            if rErr != nil {
+                return rErr
+            }
+            content := applySpecVars(string(b), args.SpecVars)
+            fs, err = parseFileSpecFromString(content)
+        }
+        if err != nil {
+            return err
+        }
+        params, err = fs.ToUploadParams()
+        if err != nil {
+            return err
+        }
+    } else {
+        if args.Source == "" {
+            return fmt.Errorf("source file needs to be set")
+        }
+        if args.Target == "" {
+            return fmt.Errorf("target path needs to be set")
+        }
+        p := services.NewUploadParams()
+        p.Pattern = args.Source
+        p.Target = args.Target
+        // Target props
+        if filtered := filterTargetProps(args.TargetProps); filtered != "" {
+            pr := artutils.NewProperties()
+            _ = pr.ParseAndAddProperties(filtered)
+            p.TargetProps = pr
+        }
+        // Flat flag
+        p.Flat = parseBoolOrDefault(false, args.Flat)
+        // Default recursive true for patterns
+        p.Recursive = true
+        params = append(params, p)
+    }
+
+    // Perform upload with summary to collect artifacts for build-info
+    summary, err := rt.UploadFilesWithSummary(artifactory.UploadServiceOptions{}, params...)
+    if err != nil {
+        return err
+    }
+    defer summary.Close()
+    if summary.TotalFailed > 0 {
+        return fmt.Errorf("%d of %d uploads failed", summary.TotalFailed, summary.TotalFailed+summary.TotalSucceeded)
+    }
+    logrus.Printf("Uploaded %d files successfully", summary.TotalSucceeded)
+
+    // Save artifacts as partials for later publish
+    artifacts, err := artutils.ConvertArtifactsDetailsToBuildInfoArtifacts(summary.ArtifactsDetailsReader)
+    if err == nil && len(artifacts) > 0 {
+        bim := NewBuildInfoManager(rt)
+        if perr := bim.SaveArtifactsPartial(args, artifacts); perr != nil {
+            logrus.Printf("warning: failed to save build-info partials: %v", perr)
+        }
+    }
+    return nil
+}
+
+// getEnvPrefix is still needed for CLI fallbacks during migration.
+func getEnvPrefix() string {
+    if runtime.GOOS == "windows" {
+        return "$Env:"
+    }
+    return "$"
 }

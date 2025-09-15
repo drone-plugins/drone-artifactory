@@ -28,10 +28,5 @@ RUN curl -fsSL https://services.gradle.org/distributions/gradle-${GRADLE_VERSION
     && rm /tmp/gradle.zip \
     && ln -s /opt/gradle/gradle-${GRADLE_VERSION}/bin/gradle /usr/local/bin/gradle
 
-# Install JFrog CLI
-RUN curl -fL https://getcli.jfrog.io/v2-jf | sh /dev/stdin 2.73.2
-RUN mv ./jf /usr/local/bin/jf
-RUN chmod +x /usr/local/bin/jf
-
 ADD release/linux/arm64/plugin /bin/
 ENTRYPOINT ["/bin/plugin"]

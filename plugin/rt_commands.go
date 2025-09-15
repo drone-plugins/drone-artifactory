@@ -1,16 +1,18 @@
 package plugin
 
 import (
-	"fmt"
-	"os"
-	"os/exec"
-	"path/filepath"
-	"reflect"
-	"runtime"
-	"strings"
-	"sync"
+    "fmt"
+    "os"
+    "os/exec"
+    "path/filepath"
+    "reflect"
+    "runtime"
+    "strings"
+    "sync"
 
-	"github.com/sirupsen/logrus"
+    services "github.com/jfrog/jfrog-client-go/artifactory/services"
+    artutils "github.com/jfrog/jfrog-client-go/artifactory/services/utils"
+    "github.com/sirupsen/logrus"
 )
 
 const (
@@ -25,30 +27,64 @@ const (
 )
 
 func HandleRtCommands(args Args) error {
+    // Ensure certs are written if provided
+    if err := WriteKnownGoodServerCertsForTls(args); err != nil {
+        logrus.Println("Error Unable to write TLS certs err = ", err)
+        return err
+    }
 
-	commandsList, err := GetRtCommandsList(args)
-	if err != nil {
-		logrus.Println("Error Unable to get rt commands list err = ", err)
-		return err
-	}
+    // New SDK-based command handling for non-build-tool commands
+    switch args.Command {
+    case "download":
+        logrus.Println("download start")
+        return runDownload(args)
+    case "cleanup":
+        logrus.Println("cleanup start")
+        return runCleanup(args)
+    case "scan":
+        logrus.Println("scan start")
+        return runScan(args)
+    case "publish-build-info":
+        logrus.Println("publish-build-info start")
+        return publishBuildInfo(args)
+    case "promote":
+        logrus.Println("promote start")
+        return runPromote(args)
+    case "add-build-dependencies":
+        logrus.Println("add-build-dependencies start")
+        return runAddDependencies(args)
+    case "build-discard":
+        logrus.Println("build-discard start")
+        return runBuildDiscard(args)
+    }
 
-	err = WriteKnownGoodServerCertsForTls(args)
-	if err != nil {
-		logrus.Println("Error Unable to write TLS certs err = ", err)
-		return err
-	}
+    // Build tools (Maven/Gradle)
+    if args.BuildTool == MvnCmd {
+        switch args.Command {
+        case "", "build":
+            logrus.Println("maven build start")
+            return runMavenBuildSDK(args)
+        case "publish":
+            logrus.Println("maven publish start")
+            return runMavenPublishSDK(args)
+        default:
+            return fmt.Errorf("unsupported maven command: %s", args.Command)
+        }
+    }
+    if args.BuildTool == GradleCmd {
+        switch args.Command {
+        case "", "build":
+            logrus.Println("gradle build start")
+            return runGradleBuildSDK(args)
+        case "publish":
+            logrus.Println("gradle publish start")
+            return runGradlePublishSDK(args)
+        default:
+            return fmt.Errorf("unsupported gradle command: %s", args.Command)
+        }
+    }
 
-	for _, cmd := range commandsList {
-		execArgs := []string{getJfrogBin()}
-		execArgs = append(execArgs, cmd...)
-		err := ExecCommand(args, execArgs)
-		if err != nil {
-			logrus.Println("Error Unable to run err = ", err)
-			return err
-		}
-	}
-
-	return err
+    return fmt.Errorf("unsupported command or build-tool combination")
 }
 
 func WriteKnownGoodServerCertsForTls(args Args) error {
@@ -180,28 +216,24 @@ func ExecCommand(args Args, cmdArgs []string) error {
 	logrus.Printf("%s %s %s", shell, shArg, cmdStr)
 	logrus.Println()
 
-	cmd := exec.Command(shell, shArg, cmdStr)
-	cmd.Env = os.Environ()
-	cmd.Env = append(cmd.Env, "JFROG_CLI_OFFER_CONFIG=false")
-
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	trace(cmd)
-
-	err := cmd.Run()
-	if err != nil {
-		logrus.Println(" Error: ", err)
-		return err
-	}
-
-	if args.PublishBuildInfo {
-		if err := publishBuildInfo(args); err != nil {
-			logrus.Println("Error publishing build info: ", err)
-			return err
-		}
-	}
-
-	return nil
+    // Deprecated path used only by Maven/Gradle fallback
+    cmd := exec.Command(shell, shArg, cmdStr)
+    cmd.Env = os.Environ()
+    cmd.Env = append(cmd.Env, "JFROG_CLI_OFFER_CONFIG=false")
+    cmd.Stdout = os.Stdout
+    cmd.Stderr = os.Stderr
+    trace(cmd)
+    if err := cmd.Run(); err != nil {
+        logrus.Println(" Error: ", err)
+        return err
+    }
+    if args.PublishBuildInfo {
+        if err := publishBuildInfo(args); err != nil {
+            logrus.Println("Error publishing build info: ", err)
+            return err
+        }
+    }
+    return nil
 }
 
 type JsonTagToExeFlagMapStringItem struct {
@@ -339,6 +371,93 @@ func GetConfigAddConfigCommandArgs(srvConfigStr, userName, password, url,
 	cfgCommand = append(cfgCommand, "--interactive=false")
 	return cfgCommand, nil
 }
+
+// --- SDK Implementations ---
+
+func runDownload(args Args) error {
+    rt, cleanup, err := createServiceManager(args)
+    if err != nil {
+        return err
+    }
+    defer cleanup()
+
+    var params []services.DownloadParams
+    if args.Spec != "" || args.SpecPath != "" {
+        var fs *FileSpec
+        if args.Spec != "" {
+            content := applySpecVars(args.Spec, args.SpecVars)
+            fs, err = parseFileSpecFromString(content)
+        } else {
+            b, rErr := os.ReadFile(args.SpecPath)
+            if rErr != nil {
+                return rErr
+            }
+            content := applySpecVars(string(b), args.SpecVars)
+            fs, err = parseFileSpecFromString(content)
+        }
+        if err != nil {
+            return err
+        }
+        params, err = fs.ToDownloadParams()
+        if err != nil {
+            return err
+        }
+    } else {
+        if args.Source == "" || args.Target == "" {
+            return fmt.Errorf("download requires source and target or a spec/spec_path")
+        }
+        p := services.NewDownloadParams()
+        p.Pattern = args.Source
+        p.Target = args.Target
+        p.Recursive = true
+        p.Flat = false
+        params = append(params, p)
+    }
+    summary, err := rt.DownloadFilesWithSummary(params...)
+    if err != nil {
+        return err
+    }
+    defer summary.Close()
+    if summary.TotalFailed > 0 {
+        return fmt.Errorf("%d downloads failed (succeeded: %d)", summary.TotalFailed, summary.TotalSucceeded)
+    }
+    logrus.Printf("Downloaded %d files successfully", summary.TotalSucceeded)
+
+    // Save dependencies partial
+    deps, err := artutils.ConvertArtifactsDetailsToBuildInfoDependencies(summary.ArtifactsDetailsReader)
+    if err == nil && len(deps) > 0 {
+        bim := NewBuildInfoManager(rt)
+        if perr := bim.SaveDependenciesPartial(args, deps); perr != nil {
+            logrus.Printf("warning: failed to save build-info partials: %v", perr)
+        }
+    }
+    return nil
+}
+
+func runCleanup(args Args) error {
+    rt, cleanup, err := createServiceManager(args)
+    if err != nil {
+        return err
+    }
+    defer cleanup()
+    bim := NewBuildInfoManager(rt)
+    if err := bim.Clean(args); err != nil {
+        return err
+    }
+    logrus.Printf("cleaned local build-info cache for %s/%s", args.BuildName, args.BuildNumber)
+    return nil
+}
+
+// getJfrogBin kept to support Maven/Gradle CLI fallback during migration
+func getJfrogBin() string {
+    if runtime.GOOS == "windows" {
+        if _, err := os.Stat("C:/bin/jfrog.exe"); err == nil {
+            return "C:/bin/jfrog.exe"
+        }
+    }
+    return "jf"
+}
+
 
 func IsBuildDiscardArgs(args Args) bool {
 	if len(args.Async) > 0 ||

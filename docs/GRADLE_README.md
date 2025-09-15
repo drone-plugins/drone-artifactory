@@ -1,4 +1,4 @@
-A plugin to upload files to Jfrog artifactory.
+A plugin to upload files to Jfrog Artifactory.
 
 Run the following script to install git-leaks support to this repo.
 ```
@@ -24,6 +24,10 @@ docker build -t plugins/artifactory  -f docker/Dockerfile .
 - Gradle build step is used to build the Gradle project and create artifacts.
 - Publish step is used to publish the Gradle project artifacts to the artifactory repositories.
 - Authentication for Jfrog artifactory can be done using Username and Password or Access Token. Refer to below examples.
+- This plugin no longer requires JFrog CLI. It uses the JFrog Go Client SDK. For Gradle, the plugin generates a temporary `init.gradle` that injects resolver and (if applicable) publishing repositories and credentials, then invokes `gradle` natively.
+- Build-info is accumulated locally and can be published using `publish-build-info` command or `publish_build_info: true`.
+- Module IDs: When `build_tool: gradle` and no `module` is provided, the plugin derives the module ID from Gradle project properties (`group:name:version`) similar to JFrog CLI extractors. If Gradle is not available or values are missing, the module defaults to `generic`. To override, set the `module` input.
+- TLS: Provide custom CA PEM contents via `pem_file_contents` or a path via `pem_file_path`. To skip TLS verification, set `insecure: true`.
 - Additional build discard with below parameters can be done.
     - delete_artifacts: The flag to delete the artifacts, if not set will only delete build metadata.
     - exclude_builds: The builds to exclude from deletion.
@@ -86,6 +90,10 @@ The config is same as the "Gradle Publish step example using Username and Passwo
 "username" should be set as a valid username using which the access token was created
 "password" should be set as the access token value, access token will be a very long string
 
+
+## Notes on Build-Info Behavior
+- Upload, download, and add-build-dependencies save build-info partials locally. Use `publish-build-info` to aggregate and publish, or set `publish_build_info: true` to publish in the same step.
+- Use `command: cleanup` with `build_name` and `build_number` to remove local cached build-info for that build.
 
 ### Gradle Publish step with build discard additional parameters
 ```yaml

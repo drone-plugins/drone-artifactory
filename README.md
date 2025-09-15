@@ -1,4 +1,4 @@
-A plugin to upload files to Jfrog artifactory.
+A plugin to upload files to Jfrog Artifactory. Now implemented using the JFrog Go Client SDK (no JFrog CLI dependency at runtime).
 
 Run the following script to install git-leaks support to this repo.
 ```
@@ -56,11 +56,18 @@ docker run --rm \
                       build_number: <+pipeline.executionId>
                       target_props: key1=value1,key2=value2
 ```
+Notes:
+- JFrog CLI is no longer required; the plugin uses `github.com/jfrog/jfrog-client-go` and `github.com/jfrog/build-info-go` under the hood.
+- Custom CA certificates can still be provided via `PLUGIN_PEM_FILE_CONTENTS` / `PLUGIN_PEM_FILE_PATH`; insecure TLS can be enabled via `PLUGIN_INSECURE=true`.
+
 ### Maven Build and Publish reference
 [Go to Maven reference](./docs/MAVEN_README.md)
 
 ### Gradle Build and Publish reference
 [Go to Gradle reference](./docs/GRADLE_README.md)
+
+### Multi-Step Build-Info Flow
+[End-to-end example: Upload → Add Deps → Download → Publish → Cleanup](./docs/BUILD_INFO_FLOW.md)
 
 ## Community and Support
 [Harness Community Slack](https://join.slack.com/t/harnesscommunity/shared_invite/zt-y4hdqh7p-RVuEQyIl5Hcx4Ck8VCvzBw) - Join the #drone slack channel to connect with our engineers and other users running Drone CI.

@@ -1,4 +1,4 @@
-A plugin to upload files to Jfrog artifactory.
+A plugin to upload files to Jfrog Artifactory.
 
 Run the following script to install git-leaks support to this repo.
 ```
@@ -21,9 +21,14 @@ docker build -t plugins/artifactory  -f docker/Dockerfile .
 ```
 
 # Maven Build and Publish
+- This plugin no longer requires JFrog CLI. It uses the JFrog Go Client SDK under the hood.
+- For Maven, the plugin generates a temporary `settings.xml` with resolver and deploy repositories and credentials based on the provided inputs, and then invokes `mvn` natively.
+- Build-info is accumulated locally across steps and can be published using the `publish-build-info` command or by setting `publish_build_info: true`.
+- Module IDs: When `build_tool: mvn` and no `module` is provided, the plugin derives the module ID from the POM as `groupId:artifactId:version` (similar to JFrog CLI extractors). To override, set the `module` input.
 - Maven build step is used to build the maven project and create artifacts. 
 - Publish step is used to publish the maven project artifacts to the artifactory repositories.
 - Authentication for Jfrog artifactory can be done using Username and Password or Access Token. Refer to below examples.
+- TLS: Provide custom CA PEM contents via `pem_file_contents` or a path via `pem_file_path`. To skip TLS verification, set `insecure: true`.
 - Additional build discard with below parameters can be done.
     - delete_artifacts: The flag to delete the artifacts, if not set will only delete build metadata.
     - exclude_builds: The builds to exclude from deletion.
@@ -124,6 +129,11 @@ docker build -t plugins/artifactory  -f docker/Dockerfile .
       async: true
 ```
 
+
+
+## Notes on Build-Info Behavior
+- Upload, download, and add-build-dependencies commands save build-info partials locally. Use `publish-build-info` to aggregate and publish, or set `publish_build_info: true` in the step to publish after the operation.
+- Use `command: cleanup` with `build_name` and `build_number` to remove local cached build-info for that build.
 
 
 ## Community and Support

@@ -1,10 +1,15 @@
 package plugin
 
 import (
-	"fmt"
-	"runtime"
+    "errors"
+    "fmt"
+    "os"
+    "os/exec"
+    "path/filepath"
+    "runtime"
+    "strings"
 
-	"github.com/sirupsen/logrus"
+    "github.com/sirupsen/logrus"
 )
 
 var GradleConfigJsonTagToExeFlagMapStringItemList = []JsonTagToExeFlagMapStringItem{
@@ -126,11 +131,11 @@ func GetGradlePublishCommand(args Args) ([][]string, error) {
 	case args.Username != "":
 		rtPublishCommandArgs = append(rtPublishCommandArgs, "-Pusername="+args.Username)
 		rtPublishCommandArgs = append(rtPublishCommandArgs, "-Ppassword="+args.Password)
-	case args.AccessToken != "":
-		errMsg := "AccessToken is not supported for Gradle" +
-			" try username: <username> , password: <access_token> instead"
-		logrus.Println(errMsg)
-		return cmdList, fmt.Errorf(errMsg)
+    case args.AccessToken != "":
+        errMsg := "AccessToken is not supported for Gradle" +
+            " try username: <username> , password: <access_token> instead"
+        logrus.Println(errMsg)
+        return cmdList, errors.New(errMsg)
 	}
 	rtPublishCommandArgs = append(rtPublishCommandArgs, "--build-name="+args.BuildName)
 	rtPublishCommandArgs = append(rtPublishCommandArgs, "--build-number="+args.BuildNumber)
@@ -158,4 +163,126 @@ func GetGradlePublishCommand(args Args) ([][]string, error) {
 	}
 
 	return cmdList, nil
+}
+
+// --- Gradle SDK-backed flows ---
+
+func runGradleBuildSDK(args Args) error {
+    initPath, cleanup, err := generateGradleInit(args)
+    if err != nil {
+        return err
+    }
+    defer cleanup()
+
+    tasks := strings.TrimSpace(args.GradleTasks)
+    if tasks == "" {
+        tasks = "clean build"
+    }
+    cmdArgs := []string{"-I", initPath}
+    if args.BuildFile != "" {
+        cmdArgs = append(cmdArgs, "-b", args.BuildFile)
+    }
+    cmdArgs = append(cmdArgs, strings.Split(tasks, " ")...)
+    cmd := exec.Command("gradle", cmdArgs...)
+    cmd.Stdout = os.Stdout
+    cmd.Stderr = os.Stderr
+    logrus.Printf("+ gradle %s", strings.Join(cmdArgs, " "))
+    return cmd.Run()
+}
+
+func runGradlePublishSDK(args Args) error {
+    // Generate init.gradle that injects publishing repo credentials if 'publishing' exists
+    initPath, cleanup, err := generateGradleInit(args)
+    if err != nil {
+        return err
+    }
+    defer cleanup()
+
+    // Default to 'publish' task if not provided
+    tasks := strings.TrimSpace(args.GradleTasks)
+    if tasks == "" {
+        tasks = "publish"
+    }
+    cmdArgs := []string{"-I", initPath}
+    if args.BuildFile != "" {
+        cmdArgs = append(cmdArgs, "-b", args.BuildFile)
+    }
+    cmdArgs = append(cmdArgs, strings.Split(tasks, " ")...)
+    cmd := exec.Command("gradle", cmdArgs...)
+    cmd.Stdout = os.Stdout
+    cmd.Stderr = os.Stderr
+    logrus.Printf("+ gradle %s", strings.Join(cmdArgs, " "))
+    return cmd.Run()
+}
+
+// generateGradleInit creates an init.gradle that sets resolve and (if exists) publishing repo with credentials.
+func generateGradleInit(args Args) (string, func(), error) {
+    sanitized, err := sanitizeURL(args.URL)
+    if err != nil {
+        return "", func() {}, err
+    }
+    if !strings.HasSuffix(sanitized, "/") {
+        sanitized += "/"
+    }
+    resolveRepo := strings.TrimLeft(args.RepoResolve, "/")
+    deployRepo := strings.TrimLeft(args.RepoDeploy, "/")
+
+    var username, password string
+    if args.AccessToken != "" && args.Username != "" {
+        username = args.Username
+        password = args.AccessToken
+    } else {
+        username = args.Username
+        password = args.Password
+    }
+
+    content := fmt.Sprintf(`
+allprojects {
+  repositories {
+    maven { url '%s%s' %s }
+  }
+}
+
+gradle.projectsEvaluated {
+  allprojects { project ->
+    if (project.hasProperty('publishing')) {
+      project.publishing {
+        repositories {
+          maven {
+            url '%s%s'
+            credentials {
+              username = '%s'
+              password = '%s'
+            }
+          }
+        }
+      }
+    }
+  }
+}
+`, sanitized, resolveRepo, gradleCredentialsBlock(username, password), sanitized, deployRepo, escapeForGroovy(username), escapeForGroovy(password))
+
+    tmpDir, err := os.MkdirTemp("", "gradle-init-")
+    if err != nil {
+        return "", func() {}, err
+    }
+    path := filepath.Join(tmpDir, "init.gradle")
+    if err := os.WriteFile(path, []byte(content), 0600); err != nil {
+        return "", func() {}, err
+    }
+    cleanup := func() { _ = os.RemoveAll(tmpDir) }
+    return path, cleanup, nil
+}
+
+func gradleCredentialsBlock(user, pass string) string {
+    if strings.TrimSpace(user) == "" {
+        return ""
+    }
+    return fmt.Sprintf("credentials { username '%s'; password '%s' }", escapeForGroovy(user), escapeForGroovy(pass))
+}
+
+func escapeForGroovy(s string) string {
+    s = strings.ReplaceAll(s, "\\", "\\\\")
+    s = strings.ReplaceAll(s, "'", "\\'")
+    return s
 }

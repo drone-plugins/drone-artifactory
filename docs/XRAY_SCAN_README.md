@@ -1,4 +1,4 @@
-A plugin to scan artifacts in Jfrog Artifactory using Xray
+A plugin to scan artifacts in JFrog Artifactory using Xray
 
 Run the following script to install git-leaks support to this repo.
 ```
@@ -20,9 +20,10 @@ Build the plugin image:
 docker build -t plugins/artifactory  -f docker/Dockerfile .
 ```
 
-#  Scan artifacts in Jfrog Artifactory using Xray
-This step scans the artifacts in JFrog Artifactory using Xray. Suitable
+#  Scan artifacts in JFrog Artifactory using Xray
+This step scans the artifacts in JFrog Artifactory using Xray via the Go SDK. Suitable
 watches and policies should be setup in JFrog for Xray in JFrog Artifactory.
+TLS notes: Provide custom CA PEM via `pem_file_contents`/`pem_file_path`, or set `insecure: true` to skip verification.
 
 ### Scan artifacts in Jfrog Artifactory using Xray
 ```yaml

@@ -1,4 +1,4 @@
-A plugin to upload files to Jfrog artifactory.
+A plugin to upload files to JFrog Artifactory.
 
 Run the following script to install git-leaks support to this repo.
 ```
@@ -23,6 +23,10 @@ docker build -t plugins/artifactory  -f docker/Dockerfile .
 #  Adds dependencies from the local file-system to the build info
 This step is used to add dependencies from the local file-system to the build info.
 The dependencies are added to the build info in the Artifactory server. 
+Notes:
+- No JFrog CLI required. The plugin uses the JFrog Go Client SDK.
+- Dependencies are saved locally as build-info partials. Use `publish-build-info` or set `publish_build_info: true` to publish aggregated build-info.
+- To collect from Artifactory instead of filesystem, set `from_rt: true` and provide a `dependency` pattern or a `spec_path`.
 
 ###  Add dependencies with a dependency pattern:
 ```yaml

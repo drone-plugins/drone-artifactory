@@ -1,4 +1,4 @@
-A plugin to download files from Jfrog artifactory.
+A plugin to download files from JFrog Artifactory.
 
 Run the following script to install git-leaks support to this repo.
 ```
@@ -20,10 +20,14 @@ Build the plugin image:
 docker build -t plugins/artifactory  -f docker/Dockerfile .
 ```
 
-#  Download artifact to Jfrog Artifactory
+#  Download artifact to JFrog Artifactory
 This step downloads the artifacts from Jfrog Artifactory.
 A valid spec or a spec path given as an argument is mandatory.
 The spec json format should be the same as Jfrog spec format
+Notes:
+- No JFrog CLI required. The plugin uses the JFrog Go Client SDK.
+- Build-info dependencies from downloads are saved locally and can be published later using `publish-build-info` or by setting `publish_build_info: true` in this step.
+- TLS: Provide custom CA PEM via `pem_file_contents`/`pem_file_path`, or set `insecure: true` to skip verification.
 
 ### Download artifact to Jfrog Artifactory using spec path example:
 ```yaml
