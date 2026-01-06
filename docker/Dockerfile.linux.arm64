@@ -1,7 +1,7 @@
-FROM arm64v8/alpine:3.21 as alpine
+FROM arm64v8/alpine:3.22 as alpine
 RUN apk add -U --no-cache ca-certificates
 
-FROM arm64v8/alpine:3.21
+FROM arm64v8/alpine:3.22
 ENV GODEBUG netdns=go
 ENV CI=true
 
@@ -29,7 +29,7 @@ RUN curl -fsSL https://services.gradle.org/distributions/gradle-${GRADLE_VERSION
     && ln -s /opt/gradle/gradle-${GRADLE_VERSION}/bin/gradle /usr/local/bin/gradle
 
 # Install JFrog CLI
-RUN curl -fL https://getcli.jfrog.io/v2-jf | sh /dev/stdin 2.82.0
+RUN curl -fL https://getcli.jfrog.io/v2-jf | sh /dev/stdin 2.87.0
 RUN mv ./jf /usr/local/bin/jf
 RUN chmod +x /usr/local/bin/jf
 
