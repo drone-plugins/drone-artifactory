@@ -23,8 +23,8 @@ COPY docker/cert.windows.pem docker/cacert.pem C:\users\ContainerAdministrator\.
 # Generate CA certificates and download/install tools in a single layer
 RUN certutil -generateSSTFromWU C:\certificates\ca-certificates.sst; `
     `
-    # Download JFrog CLI
-    Invoke-WebRequest -Uri https://releases.jfrog.io/artifactory/jfrog-cli/v2/2.82.0/jfrog-cli-windows-amd64/jfrog.exe -OutFile C:\bin\jfrog.exe; `
+    # Download JFrog CLI (updated to 2.88.0 for security fixes)
+    Invoke-WebRequest -Uri https://releases.jfrog.io/artifactory/jfrog-cli/v2/2.88.0/jfrog-cli-windows-amd64/jfrog.exe -OutFile C:\bin\jfrog.exe; `
     `
     # Download and install JDK
     Invoke-WebRequest -Uri "https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.13%2B11/OpenJDK17U-jdk_x64_windows_hotspot_17.0.13_11.zip" -OutFile "C:\jdk.zip"; `
