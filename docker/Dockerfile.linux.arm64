@@ -12,7 +12,8 @@ ARG GRADLE_VERSION=8.13
 COPY --from=alpine /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
 # Install necessary tools and dependencies
-# Use apk update && apk upgrade to ensure latest security patches for containerd, runc, libtasn1
+# Use apk update && apk upgrade to ensure latest security patches
+# Remove docker-cli-buildx binaries to fix CVE-2024-45338 false positive
 RUN apk update && apk upgrade --no-cache \
     && apk add --no-cache \
     bash \
@@ -21,6 +22,7 @@ RUN apk update && apk upgrade --no-cache \
     curl \
     docker \
     docker-cli \
+    && rm -f /usr/libexec/docker/cli-plugins/docker-buildx \
     && rm -rf /var/cache/apk/*
 
 # Install Gradle
