@@ -6,7 +6,7 @@ ENV GODEBUG netdns=go
 ENV CI=true
 
 ARG JRE_VERSION=openjdk17
-ARG GRADLE_VERSION=9.3.1
+ARG GRADLE_VERSION=8.13
 
 # Copy CA certificates
 COPY --from=alpine /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
