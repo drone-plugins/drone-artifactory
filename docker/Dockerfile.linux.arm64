@@ -12,7 +12,8 @@ ARG GRADLE_VERSION=8.13
 COPY --from=alpine /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
 # Install necessary tools and dependencies
-# Use apk update && apk upgrade to ensure latest security patches for containerd, runc, libtasn1
+# Use apk update && apk upgrade to ensure latest security patches
+# Remove docker-cli-buildx binaries to fix CVE-2024-45338 false positive
 RUN apk update && apk upgrade --no-cache \
     && apk add --no-cache \
     bash \
@@ -21,6 +22,7 @@ RUN apk update && apk upgrade --no-cache \
     curl \
     docker \
     docker-cli \
+    && rm -f /usr/libexec/docker/cli-plugins/docker-buildx \
     && rm -rf /var/cache/apk/*
 
 # Install Gradle
@@ -30,8 +32,8 @@ RUN curl -fsSL https://services.gradle.org/distributions/gradle-${GRADLE_VERSION
     && rm /tmp/gradle.zip \
     && ln -s /opt/gradle/gradle-${GRADLE_VERSION}/bin/gradle /usr/local/bin/gradle
 
-# Install JFrog CLI
-RUN curl -fL https://getcli.jfrog.io/v2-jf | sh /dev/stdin 2.88.0
+# Install JFrog CLI (updated to v2.93.0 for CVE-2025-61726 fix - built with Go 1.25.7)
+RUN curl -fL https://getcli.jfrog.io/v2-jf | sh /dev/stdin 2.93.0
 RUN mv ./jf /usr/local/bin/jf
 RUN chmod +x /usr/local/bin/jf
 
