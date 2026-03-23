@@ -25,6 +25,10 @@ RUN apk update && apk upgrade --no-cache \
     && rm -f /usr/libexec/docker/cli-plugins/docker-buildx \
     && rm -rf /var/cache/apk/*
 
+# Install Python and twine for PyPI package uploads
+RUN apk add --no-cache python3 py3-pip \
+    && python3 -m pip install --no-cache-dir --break-system-packages twine
+
 # Install Gradle
 RUN curl -fsSL https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip -o /tmp/gradle.zip \
     && mkdir /opt/gradle \

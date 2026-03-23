@@ -21,6 +21,7 @@ const (
 	Publish      = "publish"
 	GradleConfig = "gradle-config"
 	GradleCmd    = "gradle"
+	PipCmd       = "pip"
 	tmpServerId  = "tmpServerId"
 )
 
@@ -115,6 +116,11 @@ func GetRtCommandsList(args Args) ([][]string, error) {
 	if args.BuildTool == GradleCmd && args.Command == "publish" {
 		logrus.Println("Gradle publish start")
 		commandsList, err = GetGradlePublishCommand(args)
+	}
+
+	if args.BuildTool == PipCmd && args.Command == "publish" {
+		logrus.Println("PyPI publish start")
+		commandsList, err = GetPyPIPublishCommandArgs(args)
 	}
 
 	if args.Command == "download" {

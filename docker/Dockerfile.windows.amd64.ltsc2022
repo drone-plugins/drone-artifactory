@@ -15,6 +15,7 @@ RUN mkdir C:\bin | Out-Null; `
     mkdir C:\jdk | Out-Null; `
     mkdir C:\maven | Out-Null; `
     mkdir C:\gradle | Out-Null; `
+    mkdir C:\python | Out-Null; `
     mkdir -Path C:\users\ContainerAdministrator\.jfrog\security\certs | Out-Null
 
 # Copy CA certificates
@@ -36,14 +37,22 @@ RUN certutil -generateSSTFromWU C:\certificates\ca-certificates.sst; `
     `
     # Download and install Gradle
     Invoke-WebRequest -Uri "https://services.gradle.org/distributions/gradle-8.13-bin.zip" -OutFile "C:\gradle.zip"; `
-    Expand-Archive -Path "C:\gradle.zip" -DestinationPath "C:\gradle"
+    Expand-Archive -Path "C:\gradle.zip" -DestinationPath "C:\gradle"; `
+    `
+    # Download and install Python embeddable + pip + twine for PyPI uploads
+    Invoke-WebRequest -Uri "https://www.python.org/ftp/python/3.12.8/python-3.12.8-embed-amd64.zip" -OutFile "C:\python.zip"; `
+    Expand-Archive -Path "C:\python.zip" -DestinationPath "C:\python"; `
+    (Get-Content C:\python\python312._pth) -replace '#import site','import site' | Set-Content C:\python\python312._pth; `
+    Invoke-WebRequest -Uri "https://bootstrap.pypa.io/get-pip.py" -OutFile "C:\python\get-pip.py"; `
+    C:\python\python.exe C:\python\get-pip.py; `
+    C:\python\python.exe -m pip install twine
 
 # Final image using PowerShell Nanoserver - much smaller base image with PowerShell support
 FROM mcr.microsoft.com/powershell:7.3-nanoserver-ltsc2022
 
 # Create directories with proper permissions for JFrog CLI and plugin operations
 USER ContainerAdministrator
-RUN mkdir C:\bin C:\certificates C:\temp C:\uploads C:\jdk C:\maven C:\gradle
+RUN mkdir C:\bin C:\certificates C:\temp C:\uploads C:\jdk C:\maven C:\gradle C:\python
 
 # Copy certificates, JFrog CLI, JDK, Maven, and Gradle from builder stage
 COPY --from=builder C:\certificates C:\certificates
@@ -52,10 +61,11 @@ COPY --from=builder C:\bin\jfrog.exe C:\bin\jfrog.exe
 COPY --from=builder C:\jdk C:\jdk
 COPY --from=builder C:\maven C:\maven
 COPY --from=builder C:\gradle C:\gradle
+COPY --from=builder C:\python C:\python
 
 # Set environment variables
 ENV GODEBUG=netdns=go
-ENV PATH="C:\bin;C:\jdk\jdk-17.0.13+11\bin;C:\maven\apache-maven-3.9.11\bin;C:\gradle\gradle-8.13\bin;C:\Windows\System32;C:\Windows;C:\Program Files\PowerShell"
+ENV PATH="C:\bin;C:\python;C:\python\Scripts;C:\jdk\jdk-17.0.13+11\bin;C:\maven\apache-maven-3.9.11\bin;C:\gradle\gradle-8.13\bin;C:\Windows\System32;C:\Windows;C:\Program Files\PowerShell"
 ENV JAVA_HOME="C:\jdk\jdk-17.0.13+11"
 ENV MAVEN_HOME="C:\maven\apache-maven-3.9.11"
 ENV GRADLE_HOME="C:\gradle\gradle-8.13"

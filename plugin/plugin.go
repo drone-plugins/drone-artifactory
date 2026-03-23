@@ -57,8 +57,9 @@ type Args struct {
 	EnableProxy      string `envconfig:"PLUGIN_ENABLE_PROXY"`
 
 	// RT commands
-	BuildTool string `envconfig:"PLUGIN_BUILD_TOOL"`
-	Command   string `envconfig:"PLUGIN_COMMAND"`
+	BuildTool   string `envconfig:"PLUGIN_BUILD_TOOL"`
+	Command     string `envconfig:"PLUGIN_COMMAND"`
+	PackageType string `envconfig:"PLUGIN_PACKAGE_TYPE"`
 
 	// Mvn commands
 	ResolveReleaseRepo  string `envconfig:"PLUGIN_RESOLVE_RELEASE_REPO"`
@@ -104,6 +105,12 @@ type Args struct {
 func Exec(ctx context.Context, args Args) error {
 
 	logrus.Println("Checking RT commands")
+	if strings.EqualFold(args.PackageType, "pypi") || strings.Contains(args.Target, "api/pypi/") {
+		args.BuildTool = "pip"
+		if args.Command == "" {
+			args.Command = "publish"
+		}
+	}
 	if args.BuildTool != "" || args.Command != "" {
 		logrus.Println("Handling rt command handleRtCommand")
 		return HandleRtCommands(args)
