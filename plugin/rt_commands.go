@@ -25,30 +25,12 @@ const (
 )
 
 func HandleRtCommands(args Args) error {
-
-	commandsList, err := GetRtCommandsList(args)
+	runtimeCtx, err := newRuntimeContext(args)
 	if err != nil {
-		logrus.Println("Error Unable to get rt commands list err = ", err)
 		return err
 	}
-
-	err = WriteKnownGoodServerCertsForTls(args)
-	if err != nil {
-		logrus.Println("Error Unable to write TLS certs err = ", err)
-		return err
-	}
-
-	for _, cmd := range commandsList {
-		execArgs := []string{getJfrogBin()}
-		execArgs = append(execArgs, cmd...)
-		err := ExecCommand(args, execArgs)
-		if err != nil {
-			logrus.Println("Error Unable to run err = ", err)
-			return err
-		}
-	}
-
-	return err
+	defer runtimeCtx.Close()
+	return runtimeCtx.runRTCommand()
 }
 
 func WriteKnownGoodServerCertsForTls(args Args) error {
