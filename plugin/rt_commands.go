@@ -5,11 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"reflect"
 	"runtime"
-	"strings"
 	"sync"
 
 	"github.com/sirupsen/logrus"
@@ -139,55 +137,6 @@ func GetRtCommandsList(args Args) ([][]string, error) {
 		commandsList, err = GetBuildDiscardCommandArgs(args)
 	}
 	return commandsList, err
-}
-
-func GetShellForOs(osName string) (string, string) {
-
-	if runtime.GOOS == "windows" {
-		// First check for PowerShell Core (pwsh.exe) which is used in PowerShell Nanoserver
-		if _, err := os.Stat("C:/Program Files/PowerShell/pwsh.exe"); err == nil {
-			return "pwsh", "-Command"
-		}
-
-		// Fall back to traditional PowerShell
-		return "powershell", "-Command"
-	}
-
-	return "sh", "-c"
-}
-
-func ExecCommand(args Args, cmdArgs []string) error {
-
-	cmdStr := strings.Join(cmdArgs[:], " ")
-
-	shell, shArg := GetShellForOs(runtime.GOOS)
-
-	logrus.Println()
-	logrus.Printf("%s %s %s", shell, shArg, cmdStr)
-	logrus.Println()
-
-	cmd := exec.Command(shell, shArg, cmdStr)
-	cmd.Env = os.Environ()
-	cmd.Env = append(cmd.Env, "JFROG_CLI_OFFER_CONFIG=false")
-
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	trace(cmd)
-
-	err := cmd.Run()
-	if err != nil {
-		logrus.Println(" Error: ", err)
-		return err
-	}
-
-	if args.PublishBuildInfo {
-		if err := publishBuildInfo(context.Background(), args); err != nil {
-			logrus.Println("Error publishing build info: ", err)
-			return err
-		}
-	}
-
-	return nil
 }
 
 type JsonTagToExeFlagMapStringItem struct {

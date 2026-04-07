@@ -714,6 +714,9 @@ func (ctx *runtimeContext) saveRemoteDependencies(reader *content.ContentReader)
 	for resultItem := new(rtServicesUtils.ResultItem); reader.NextRecord(resultItem) == nil; resultItem = new(rtServicesUtils.ResultItem) {
 		dependencies = append(dependencies, resultItem.ToDependency())
 		buffered++
+		// Keep flush granularity aligned with the upstream reader buffering limit so
+		// remote dependency collection does not accumulate more in memory than the
+		// client-go content pipeline is already tuned to process at once.
 		if buffered > clientutils.MaxBufferSize {
 			if err := saveBuildDependencies(buildCfg, dependencies); err != nil {
 				return err
@@ -954,7 +957,10 @@ func (ctx *runtimeContext) createServerDetails(serverID string) (*jfrogConfig.Se
 		serverDetails.User = ctx.args.Username
 		serverDetails.Password = ctx.args.Password
 	case ctx.args.APIKey != "":
-		// Temporary wrapper-path compatibility: jfrog-cli-core ServerDetails does not expose ApiKey.
+		// Temporary wrapper-path compatibility: Maven/Gradle server registration still
+		// depends on jfrog-cli-core ServerDetails, which does not expose ApiKey.
+		// Remove this workaround once those wrapper paths can consume client-go auth
+		// details directly or jfrog-cli-core adds first-class API key support.
 		serverDetails.User = ctx.args.Username
 		serverDetails.AccessToken = ctx.args.APIKey
 	case ctx.args.AccessToken != "":
