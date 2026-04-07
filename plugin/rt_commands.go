@@ -1,6 +1,8 @@
 package plugin
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -24,12 +26,14 @@ const (
 	tmpServerId  = "tmpServerId"
 )
 
-func HandleRtCommands(args Args) error {
-	runtimeCtx, err := newRuntimeContext(args)
+func HandleRtCommands(ctx context.Context, args Args) (err error) {
+	runtimeCtx, err := newRuntimeContext(ctx, args)
 	if err != nil {
 		return err
 	}
-	defer runtimeCtx.Close()
+	defer func() {
+		err = errors.Join(err, runtimeCtx.Close())
+	}()
 	return runtimeCtx.runRTCommand()
 }
 
@@ -177,7 +181,7 @@ func ExecCommand(args Args, cmdArgs []string) error {
 	}
 
 	if args.PublishBuildInfo {
-		if err := publishBuildInfo(args); err != nil {
+		if err := publishBuildInfo(context.Background(), args); err != nil {
 			logrus.Println("Error publishing build info: ", err)
 			return err
 		}

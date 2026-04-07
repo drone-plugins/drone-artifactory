@@ -4,6 +4,8 @@ go 1.25.7
 
 require (
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510
+	github.com/jfrog/build-info-go v1.13.1-0.20260331040230-c3b53d1a24ac
+	github.com/jfrog/gofrog v1.7.6
 	github.com/jfrog/jfrog-cli-artifactory v0.8.1-0.20260401103228-4840b9314595
 	github.com/jfrog/jfrog-cli-core/v2 v2.60.1-0.20260330172141-89d5ff480628
 	github.com/jfrog/jfrog-client-go v1.55.1-0.20260401130923-f5a15b584a0d
@@ -43,8 +45,6 @@ require (
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
 	github.com/jedib0t/go-pretty/v6 v6.7.8 // indirect
 	github.com/jfrog/archiver/v3 v3.6.3 // indirect
-	github.com/jfrog/build-info-go v1.13.1-0.20260331040230-c3b53d1a24ac // indirect
-	github.com/jfrog/gofrog v1.7.6 // indirect
 	github.com/kevinburke/ssh_config v1.6.0 // indirect
 	github.com/klauspost/compress v1.18.5 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect

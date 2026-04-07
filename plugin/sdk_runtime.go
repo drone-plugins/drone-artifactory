@@ -1,19 +1,23 @@
 package plugin
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 
 	"github.com/google/shlex"
+	"github.com/jfrog/build-info-go/entities"
+	ioutils "github.com/jfrog/gofrog/io"
 	buildinfoCmd "github.com/jfrog/jfrog-cli-artifactory/artifactory/commands/buildinfo"
-	genericCmd "github.com/jfrog/jfrog-cli-artifactory/artifactory/commands/generic"
 	gradleCmd "github.com/jfrog/jfrog-cli-artifactory/artifactory/commands/gradle"
 	mvnCmd "github.com/jfrog/jfrog-cli-artifactory/artifactory/commands/mvn"
+	"github.com/jfrog/jfrog-cli-artifactory/artifactory/utils/civcs"
 	rtUtils "github.com/jfrog/jfrog-cli-core/v2/artifactory/utils"
 	jfrogBuild "github.com/jfrog/jfrog-cli-core/v2/common/build"
 	commonCliUtils "github.com/jfrog/jfrog-cli-core/v2/common/cliutils"
@@ -21,23 +25,35 @@ import (
 	jfrogSpec "github.com/jfrog/jfrog-cli-core/v2/common/spec"
 	jfrogConfig "github.com/jfrog/jfrog-cli-core/v2/utils/config"
 	"github.com/jfrog/jfrog-cli-core/v2/utils/coreutils"
-	artBuildInfo "github.com/jfrog/jfrog-client-go/artifactory/buildinfo"
+	artifactory "github.com/jfrog/jfrog-client-go/artifactory"
+	artifactoryAuth "github.com/jfrog/jfrog-client-go/artifactory/auth"
 	"github.com/jfrog/jfrog-client-go/artifactory/services"
+	rtServicesUtils "github.com/jfrog/jfrog-client-go/artifactory/services/utils"
+	clientAuth "github.com/jfrog/jfrog-client-go/auth"
+	clientConfig "github.com/jfrog/jfrog-client-go/config"
+	clientutils "github.com/jfrog/jfrog-client-go/utils"
+	"github.com/jfrog/jfrog-client-go/utils/io/content"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 )
 
 const (
 	jfrogHomeDirEnv = "JFROG_CLI_HOME_DIR"
+	defaultThreads  = 3
 )
 
+var currentGOOS = runtime.GOOS
+
 type runtimeContext struct {
+	ctx          context.Context
 	args         Args
 	tempDir      string
 	homeDir      string
 	projectDir   string
 	restoreHome  func() error
+	removeTemp   func(string) error
 	tempSpecPath string
+	newManager   func(dryRun bool, threads int) (artifactory.ArtifactoryServicesManager, error)
 }
 
 type projectConfigFile struct {
@@ -49,8 +65,11 @@ type projectConfigFile struct {
 	UseWrapper bool                    `yaml:"useWrapper,omitempty"`
 }
 
-func newRuntimeContext(args Args) (*runtimeContext, error) {
-	ctx := &runtimeContext{args: args}
+func newRuntimeContext(parent context.Context, args Args) (*runtimeContext, error) {
+	if parent == nil {
+		parent = context.Background()
+	}
+	ctx := &runtimeContext{ctx: parent, args: args}
 
 	tempDir, err := os.MkdirTemp("", "drone-artifactory-*")
 	if err != nil {
@@ -59,23 +78,24 @@ func newRuntimeContext(args Args) (*runtimeContext, error) {
 	ctx.tempDir = tempDir
 	ctx.homeDir = filepath.Join(tempDir, ".jfrog")
 	ctx.projectDir = filepath.Join(tempDir, "projects")
+	ctx.removeTemp = os.RemoveAll
 
 	if err := os.MkdirAll(filepath.Join(ctx.homeDir, "security", "certs"), 0o700); err != nil {
-		_ = os.RemoveAll(tempDir)
+		_ = ctx.removeTemp(tempDir)
 		return nil, err
 	}
 	if err := os.MkdirAll(ctx.projectDir, 0o700); err != nil {
-		_ = os.RemoveAll(tempDir)
+		_ = ctx.removeTemp(tempDir)
 		return nil, err
 	}
 
 	if err := ctx.seedRuntimeCerts(); err != nil {
-		_ = os.RemoveAll(tempDir)
+		_ = ctx.removeTemp(tempDir)
 		return nil, err
 	}
 
 	if err := ctx.installPemCertificates(); err != nil {
-		_ = os.RemoveAll(tempDir)
+		_ = ctx.removeTemp(tempDir)
 		return nil, err
 	}
 
@@ -91,43 +111,35 @@ func (ctx *runtimeContext) Close() error {
 		}
 	}
 	if ctx.tempDir != "" {
-		if err := os.RemoveAll(ctx.tempDir); err != nil {
+		removeTemp := ctx.removeTemp
+		if removeTemp == nil {
+			removeTemp = os.RemoveAll
+		}
+		if err := removeTemp(ctx.tempDir); err != nil {
 			errs = append(errs, err)
 		}
 	}
 	if len(errs) == 0 {
 		return nil
 	}
-	return errs[0]
+	return errors.Join(errs...)
 }
 
 func (ctx *runtimeContext) runDefaultUpload() error {
+	if err := ctx.checkContext(); err != nil {
+		return err
+	}
 	if ctx.args.URL == "" {
 		return fmt.Errorf("JFrog Artifactory URL must be set, or anonymous access is not permitted")
 	}
 
-	serverDetails, err := ctx.createServerDetails("")
-	if err != nil {
-		return err
-	}
 	specFiles, err := ctx.uploadSpec()
 	if err != nil {
 		return err
 	}
 
 	traceCommand("jf-sdk rt upload")
-	uploadCmd := genericCmd.NewUploadCommand()
-	uploadCmd.SetServerDetails(serverDetails)
-	uploadCmd.SetSpec(specFiles)
-	uploadCmd.SetBuildConfiguration(ctx.buildConfiguration())
-	uploadCmd.SetDetailedSummary(false)
-	uploadCmd.SetRetries(ctx.args.Retries)
-	uploadCmd.SetRetryWaitMilliSecs(0)
-	uploadCmd.SetUploadConfiguration(&rtUtils.UploadConfiguration{
-		Threads: ctx.threadsOrDefault(),
-	})
-
-	if err := uploadCmd.Run(); err != nil {
+	if err := ctx.uploadWithContext(specFiles); err != nil {
 		return err
 	}
 
@@ -200,8 +212,7 @@ func (ctx *runtimeContext) runRTCommand() error {
 }
 
 func (ctx *runtimeContext) runDownload() error {
-	serverDetails, err := ctx.createServerDetails("")
-	if err != nil {
+	if err := ctx.checkContext(); err != nil {
 		return err
 	}
 	specFiles, err := ctx.downloadSpec()
@@ -210,64 +221,54 @@ func (ctx *runtimeContext) runDownload() error {
 	}
 
 	traceCommand("jf-sdk rt download")
-	downloadCmd := genericCmd.NewDownloadCommand()
-	downloadCmd.SetServerDetails(serverDetails)
-	downloadCmd.SetSpec(specFiles)
-	downloadCmd.SetBuildConfiguration(ctx.buildConfiguration())
-	downloadCmd.SetDetailedSummary(false)
-	downloadCmd.SetRetries(ctx.args.Retries)
-	downloadCmd.SetRetryWaitMilliSecs(0)
-	downloadCmd.SetConfiguration(&rtUtils.DownloadConfiguration{
-		Threads: ctx.threadsOrDefault(),
-	})
-
-	return downloadCmd.Run()
+	return ctx.downloadWithContext(specFiles)
 }
 
 func (ctx *runtimeContext) publishBuildInfo() error {
+	if err := ctx.checkContext(); err != nil {
+		return err
+	}
 	buildConfig := ctx.buildConfiguration()
 	if err := buildConfig.ValidateBuildParams(); err != nil {
 		return fmt.Errorf("both build name and build number need to be set when publishing build info")
 	}
 
-	serverDetails, err := ctx.createServerDetails("")
-	if err != nil {
-		return err
-	}
-
 	traceCommand("jf-sdk rt build-publish")
-	publishCmd := buildinfoCmd.NewBuildPublishCommand()
-	publishCmd.SetServerDetails(serverDetails).
-		SetBuildConfiguration(buildConfig).
-		SetConfig(&artBuildInfo.Configuration{})
-
-	return publishCmd.Run()
+	return ctx.publishBuildInfoWithContext(buildConfig)
 }
 
 func (ctx *runtimeContext) runBuildClean() error {
+	if err := ctx.checkContext(); err != nil {
+		return err
+	}
 	traceCommand("jf-sdk rt build-clean")
-	return buildinfoCmd.NewBuildCleanCommand().
-		SetBuildConfiguration(ctx.buildConfiguration()).
-		Run()
-}
-
-func (ctx *runtimeContext) runBuildScan() error {
-	serverDetails, err := ctx.createServerDetails("")
+	buildConfig := ctx.buildConfiguration()
+	buildName, err := buildConfig.GetBuildName()
 	if err != nil {
 		return err
 	}
+	buildNumber, err := buildConfig.GetBuildNumber()
+	if err != nil {
+		return err
+	}
+	logrus.Info("Cleaning build info...")
+	if err := jfrogBuild.RemoveBuildDir(buildName, buildNumber, buildConfig.GetProject()); err != nil {
+		return err
+	}
+	logrus.Infof("Cleaned build info %s/%s.", buildName, buildNumber)
+	return nil
+}
 
+func (ctx *runtimeContext) runBuildScan() error {
+	if err := ctx.checkContext(); err != nil {
+		return err
+	}
 	traceCommand("jf-sdk rt build-scan")
-	return buildinfoCmd.NewBuildScanLegacyCommand().
-		SetServerDetails(serverDetails).
-		SetBuildConfiguration(ctx.buildConfiguration()).
-		SetFailBuild(false).
-		Run()
+	return ctx.scanBuildWithContext()
 }
 
 func (ctx *runtimeContext) runPromote() error {
-	serverDetails, err := ctx.createServerDetails("")
-	if err != nil {
+	if err := ctx.checkContext(); err != nil {
 		return err
 	}
 
@@ -276,32 +277,19 @@ func (ctx *runtimeContext) runPromote() error {
 	params.Copy = parseBoolOrDefault(false, ctx.args.Copy)
 
 	traceCommand("jf-sdk rt build-promote")
-	return buildinfoCmd.NewBuildPromotionCommand().
-		SetServerDetails(serverDetails).
-		SetBuildConfiguration(ctx.buildConfiguration()).
-		SetPromotionParams(params).
-		Run()
+	return ctx.promoteBuildWithContext(params)
 }
 
 func (ctx *runtimeContext) runAddDependencies() error {
-	specFiles, serverDetails, err := ctx.buildDependenciesSpecAndServer()
-	if err != nil {
+	if err := ctx.checkContext(); err != nil {
 		return err
 	}
-
 	traceCommand("jf-sdk rt build-add-dependencies")
-	cmd := buildinfoCmd.NewBuildAddDependenciesCommand().
-		SetBuildConfiguration(ctx.buildConfiguration()).
-		SetDependenciesSpec(specFiles)
-	if serverDetails != nil {
-		cmd.SetServerDetails(serverDetails)
-	}
-	return cmd.Run()
+	return ctx.addDependenciesWithContext()
 }
 
 func (ctx *runtimeContext) runBuildDiscard() error {
-	serverDetails, err := ctx.createServerDetails("")
-	if err != nil {
+	if err := ctx.checkContext(); err != nil {
 		return err
 	}
 
@@ -315,13 +303,17 @@ func (ctx *runtimeContext) runBuildDiscard() error {
 	params.DeleteArtifacts = parseBoolOrDefault(false, ctx.args.DeleteArtifacts)
 
 	traceCommand("jf-sdk rt build-discard")
-	return buildinfoCmd.NewBuildDiscardCommand().
-		SetServerDetails(serverDetails).
-		SetDiscardBuildsParams(params).
-		Run()
+	manager, err := ctx.createServiceManager(false, defaultThreads)
+	if err != nil {
+		return err
+	}
+	return manager.DiscardBuilds(params)
 }
 
 func (ctx *runtimeContext) runMaven(publish bool) error {
+	if err := ctx.checkContext(); err != nil {
+		return err
+	}
 	resolveServerID := ctx.args.ResolverId
 	if resolveServerID == "" {
 		resolveServerID = tmpServerId
@@ -345,10 +337,7 @@ func (ctx *runtimeContext) runMaven(publish bool) error {
 	}
 
 	traceCommand("jf-sdk mvn")
-	goals, err := shellSplit(ctx.args.MvnGoals)
-	if err != nil {
-		return err
-	}
+	goals := shellSplitBestEffort(ctx.args.MvnGoals)
 	if publish {
 		goals = []string{Deploy}
 	}
@@ -363,8 +352,12 @@ func (ctx *runtimeContext) runMaven(publish bool) error {
 		SetThreads(ctx.threadsOrDefault()).
 		SetInsecureTls(parseBoolOrDefault(false, ctx.args.Insecure))
 
+	// The current JFrog Maven wrapper does not expose a context hook for mid-flight cancellation.
 	if err := cmd.Run(); err != nil {
 		return normalizeHostToolError("maven", err)
+	}
+	if err := ctx.checkContext(); err != nil {
+		return err
 	}
 	if publish {
 		return ctx.publishBuildInfo()
@@ -373,6 +366,9 @@ func (ctx *runtimeContext) runMaven(publish bool) error {
 }
 
 func (ctx *runtimeContext) runGradle(publish bool) error {
+	if err := ctx.checkContext(); err != nil {
+		return err
+	}
 	resolveServerID := ctx.args.ResolverId
 	if resolveServerID == "" {
 		resolveServerID = tmpServerId
@@ -396,10 +392,7 @@ func (ctx *runtimeContext) runGradle(publish bool) error {
 	}
 
 	traceCommand("jf-sdk gradle")
-	tasks, err := shellSplit(ctx.args.GradleTasks)
-	if err != nil {
-		return err
-	}
+	tasks := shellSplitBestEffort(ctx.args.GradleTasks)
 	if publish {
 		tasks = []string{Publish}
 		switch {
@@ -421,13 +414,437 @@ func (ctx *runtimeContext) runGradle(publish bool) error {
 		SetTasks(tasks).
 		SetThreads(ctx.threadsOrDefault())
 
+	// The current JFrog Gradle wrapper does not expose a context hook for mid-flight cancellation.
 	if err := cmd.Run(); err != nil {
 		return normalizeHostToolError("gradle", err)
+	}
+	if err := ctx.checkContext(); err != nil {
+		return err
 	}
 	if publish {
 		return ctx.publishBuildInfo()
 	}
 	return nil
+}
+
+func (ctx *runtimeContext) uploadWithContext(specFiles *jfrogSpec.SpecFiles) (err error) {
+	manager, err := ctx.createServiceManager(false, ctx.threadsOrDefault())
+	if err != nil {
+		return err
+	}
+
+	uploadCfg := &rtUtils.UploadConfiguration{Threads: ctx.threadsOrDefault()}
+	uploadCfg.MinChecksumDeploySize, err = rtUtils.GetMinChecksumDeploySize()
+	if err != nil {
+		return err
+	}
+
+	buildCfg := ctx.buildConfiguration()
+	toCollect, err := buildCfg.IsCollectBuildInfo()
+	if err != nil {
+		return err
+	}
+	buildProps := ""
+	if toCollect {
+		buildProps, err = jfrogBuild.CreateBuildPropsFromConfiguration(buildCfg)
+		if err != nil {
+			return err
+		}
+	}
+
+	uploadParams := make([]services.UploadParams, 0, len(specFiles.Files))
+	for i := range specFiles.Files {
+		if err := ctx.checkContext(); err != nil {
+			return err
+		}
+		file := specFiles.Get(i)
+		file.TargetProps = clientutils.AddProps(file.TargetProps, file.Props)
+		// TODO: Move the JFrog wrapper modules back to stable tags once a tagged
+		// jfrog-cli-artifactory release includes civcs.MergeWithUserProps and
+		// stops pinning pseudo-versioned jfrog-cli-core/client-go/build-info-go.
+		file.TargetProps = civcs.MergeWithUserProps(file.TargetProps)
+		params, err := createUploadParams(file, uploadCfg, buildProps, toCollect, false)
+		if err != nil {
+			return err
+		}
+		uploadParams = append(uploadParams, params)
+	}
+
+	summary, err := manager.UploadFilesWithSummary(artifactory.UploadServiceOptions{}, uploadParams...)
+	if err != nil {
+		return err
+	}
+	if summary == nil {
+		return nil
+	}
+	if summary.TransferDetailsReader != nil {
+		defer ioutils.Close(summary.TransferDetailsReader, &err)
+	}
+	if summary.ArtifactsDetailsReader != nil {
+		defer ioutils.Close(summary.ArtifactsDetailsReader, &err)
+	}
+	if summary.TotalFailed > 0 {
+		return errors.New("upload finished with errors. Review the logs for more information")
+	}
+	if toCollect && summary.ArtifactsDetailsReader != nil {
+		artifacts, convErr := rtServicesUtils.ConvertArtifactsDetailsToBuildInfoArtifacts(summary.ArtifactsDetailsReader)
+		if convErr != nil {
+			return convErr
+		}
+		return jfrogBuild.PopulateBuildArtifactsAsPartials(artifacts, buildCfg, entities.Generic)
+	}
+	return nil
+}
+
+func (ctx *runtimeContext) downloadWithContext(specFiles *jfrogSpec.SpecFiles) (err error) {
+	manager, err := ctx.createServiceManager(false, ctx.threadsOrDefault())
+	if err != nil {
+		return err
+	}
+
+	buildCfg := ctx.buildConfiguration()
+	toCollect, err := buildCfg.IsCollectBuildInfo()
+	if err != nil {
+		return err
+	}
+	if toCollect {
+		buildName, err := buildCfg.GetBuildName()
+		if err != nil {
+			return err
+		}
+		buildNumber, err := buildCfg.GetBuildNumber()
+		if err != nil {
+			return err
+		}
+		if err := jfrogBuild.SaveBuildGeneralDetails(buildName, buildNumber, buildCfg.GetProject()); err != nil {
+			return err
+		}
+	}
+
+	downloadCfg := &rtUtils.DownloadConfiguration{Threads: ctx.threadsOrDefault()}
+	downloadParams := make([]services.DownloadParams, 0, len(specFiles.Files))
+	for i := range specFiles.Files {
+		if err := ctx.checkContext(); err != nil {
+			return err
+		}
+		params, err := createDownloadParams(specFiles.Get(i), downloadCfg)
+		if err != nil {
+			return err
+		}
+		downloadParams = append(downloadParams, params)
+	}
+
+	summary, err := manager.DownloadFilesWithSummary(downloadParams...)
+	if err != nil {
+		return err
+	}
+	if summary == nil {
+		return nil
+	}
+	if summary.TransferDetailsReader != nil {
+		defer ioutils.Close(summary.TransferDetailsReader, &err)
+	}
+	if summary.ArtifactsDetailsReader != nil {
+		defer ioutils.Close(summary.ArtifactsDetailsReader, &err)
+	}
+	if summary.TotalFailed > 0 {
+		return errors.New("download finished with errors, please review the logs")
+	}
+	if toCollect && summary.ArtifactsDetailsReader != nil {
+		buildName, err := buildCfg.GetBuildName()
+		if err != nil {
+			return err
+		}
+		buildNumber, err := buildCfg.GetBuildNumber()
+		if err != nil {
+			return err
+		}
+		buildDependencies, convErr := rtServicesUtils.ConvertArtifactsDetailsToBuildInfoDependencies(summary.ArtifactsDetailsReader)
+		if convErr != nil {
+			return convErr
+		}
+		return jfrogBuild.SavePartialBuildInfo(buildName, buildNumber, buildCfg.GetProject(), func(partial *entities.Partial) {
+			partial.Dependencies = buildDependencies
+			partial.ModuleId = buildCfg.GetModule()
+			partial.ModuleType = entities.Generic
+		})
+	}
+	return nil
+}
+
+func (ctx *runtimeContext) publishBuildInfoWithContext(buildConfig *jfrogBuild.BuildConfiguration) error {
+	manager, err := ctx.createServiceManager(false, defaultThreads)
+	if err != nil {
+		return err
+	}
+	buildInfoService := jfrogBuild.CreateBuildInfoService()
+	buildName, err := buildConfig.GetBuildName()
+	if err != nil {
+		return err
+	}
+	buildNumber, err := buildConfig.GetBuildNumber()
+	if err != nil {
+		return err
+	}
+	buildInstance, err := buildInfoService.GetOrCreateBuildWithProject(buildName, buildNumber, buildConfig.GetProject())
+	if err != nil {
+		return err
+	}
+	buildInstance.SetAgentName(coreutils.GetCliUserAgentName())
+	buildInstance.SetAgentVersion(coreutils.GetCliUserAgentVersion())
+	buildInstance.SetBuildAgentVersion(coreutils.GetClientAgentVersion())
+	buildInstance.SetPrincipal(ctx.args.Username)
+	buildInfo, err := buildInstance.ToBuildInfo()
+	if err != nil {
+		return err
+	}
+	_, err = manager.PublishBuildInfo(buildInfo, buildConfig.GetProject())
+	return err
+}
+
+func (ctx *runtimeContext) promoteBuildWithContext(params services.PromotionParams) error {
+	buildConfig := ctx.buildConfiguration()
+	if err := buildConfig.ValidateBuildParams(); err != nil {
+		return err
+	}
+	buildName, err := buildConfig.GetBuildName()
+	if err != nil {
+		return err
+	}
+	buildNumber, err := buildConfig.GetBuildNumber()
+	if err != nil {
+		return err
+	}
+	params.BuildName = buildName
+	params.BuildNumber = buildNumber
+	params.ProjectKey = buildConfig.GetProject()
+
+	manager, err := ctx.createServiceManager(false, defaultThreads)
+	if err != nil {
+		return err
+	}
+	return manager.PromoteBuild(params)
+}
+
+func (ctx *runtimeContext) scanBuildWithContext() error {
+	buildConfig := ctx.buildConfiguration()
+	params := services.NewXrayScanParams()
+	buildName, err := buildConfig.GetBuildName()
+	if err != nil {
+		return err
+	}
+	buildNumber, err := buildConfig.GetBuildNumber()
+	if err != nil {
+		return err
+	}
+	params.BuildName = buildName
+	params.BuildNumber = buildNumber
+	params.ProjectKey = buildConfig.GetProject()
+
+	manager, err := ctx.createServiceManager(false, defaultThreads)
+	if err != nil {
+		return err
+	}
+	logrus.Info("Triggered Xray build scan... The scan may take a few minutes.")
+	result, err := manager.XrayScanBuild(params)
+	if err != nil {
+		return err
+	}
+	logrus.Info("Xray scan completed.")
+	logrus.Println(clientutils.IndentJson(result))
+	return nil
+}
+
+func (ctx *runtimeContext) addDependenciesWithContext() error {
+	specFiles, fromRT, err := ctx.buildDependenciesSpec()
+	if err != nil {
+		return err
+	}
+	if !fromRT {
+		return buildinfoCmd.NewBuildAddDependenciesCommand().
+			SetBuildConfiguration(ctx.buildConfiguration()).
+			SetDependenciesSpec(specFiles).
+			Run()
+	}
+
+	buildConfig := ctx.buildConfiguration()
+	buildName, err := buildConfig.GetBuildName()
+	if err != nil {
+		return err
+	}
+	buildNumber, err := buildConfig.GetBuildNumber()
+	if err != nil {
+		return err
+	}
+	if err := jfrogBuild.SaveBuildGeneralDetails(buildName, buildNumber, buildConfig.GetProject()); err != nil {
+		return err
+	}
+
+	manager, err := ctx.createServiceManager(false, defaultThreads)
+	if err != nil {
+		return err
+	}
+	for i := range specFiles.Files {
+		if err := ctx.checkContext(); err != nil {
+			return err
+		}
+		searchParams, err := rtUtils.GetSearchParams(specFiles.Get(i))
+		if err != nil {
+			return err
+		}
+		reader, err := manager.SearchFiles(searchParams)
+		if err != nil {
+			return err
+		}
+		if err := ctx.saveRemoteDependencies(reader); err != nil {
+			_ = reader.Close()
+			return err
+		}
+		if err := reader.Close(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (ctx *runtimeContext) saveRemoteDependencies(reader *content.ContentReader) error {
+	buildCfg := ctx.buildConfiguration()
+	buffered := 0
+	var dependencies []entities.Dependency
+	for resultItem := new(rtServicesUtils.ResultItem); reader.NextRecord(resultItem) == nil; resultItem = new(rtServicesUtils.ResultItem) {
+		dependencies = append(dependencies, resultItem.ToDependency())
+		buffered++
+		if buffered > clientutils.MaxBufferSize {
+			if err := saveBuildDependencies(buildCfg, dependencies); err != nil {
+				return err
+			}
+			buffered = 0
+			dependencies = nil
+		}
+	}
+	if err := reader.GetError(); err != nil {
+		return err
+	}
+	if len(dependencies) > 0 {
+		return saveBuildDependencies(buildCfg, dependencies)
+	}
+	return nil
+}
+
+func createUploadParams(f *jfrogSpec.File, configuration *rtUtils.UploadConfiguration, buildProps string, addVcsProps bool, dryRun bool) (uploadParams services.UploadParams, err error) {
+	uploadParams = services.NewUploadParams()
+	uploadParams.CommonParams, err = f.ToCommonParams()
+	if err != nil {
+		return
+	}
+	uploadParams.Deb = configuration.Deb
+	uploadParams.MinChecksumDeploy = configuration.MinChecksumDeploySize
+	uploadParams.MinSplitSize = configuration.MinSplitSizeMB * rtServicesUtils.SizeMiB
+	uploadParams.SplitCount = configuration.SplitCount
+	uploadParams.ChunkSize = configuration.ChunkSizeMB * rtServicesUtils.SizeMiB
+	uploadParams.AddVcsProps = addVcsProps
+	uploadParams.BuildProps = buildProps
+	uploadParams.Archive = f.Archive
+	uploadParams.TargetPathInArchive = f.TargetPathInArchive
+
+	uploadParams.Recursive, err = f.IsRecursive(true)
+	if err != nil {
+		return
+	}
+	uploadParams.Regexp, err = f.IsRegexp(false)
+	if err != nil {
+		return
+	}
+	uploadParams.Ant, err = f.IsAnt(false)
+	if err != nil {
+		return
+	}
+	includeDirs, err := f.IsIncludeDirs(false)
+	if err != nil {
+		return
+	}
+	uploadParams.IncludeDirs = includeDirs && !dryRun
+	uploadParams.Flat, err = f.IsFlat(true)
+	if err != nil {
+		return
+	}
+	uploadParams.ExplodeArchive, err = f.IsExplode(false)
+	if err != nil {
+		return
+	}
+	uploadParams.Symlink, err = f.IsSymlinks(false)
+	if err != nil {
+		return
+	}
+	return
+}
+
+func createDownloadParams(f *jfrogSpec.File, configuration *rtUtils.DownloadConfiguration) (downloadParams services.DownloadParams, err error) {
+	downloadParams = services.NewDownloadParams()
+	downloadParams.CommonParams, err = f.ToCommonParams()
+	if err != nil {
+		return
+	}
+	downloadParams.Symlink = configuration.Symlink
+	downloadParams.MinSplitSize = configuration.MinSplitSize
+	downloadParams.SplitCount = configuration.SplitCount
+	downloadParams.SkipChecksum = configuration.SkipChecksum
+
+	downloadParams.Recursive, err = f.IsRecursive(true)
+	if err != nil {
+		return
+	}
+	downloadParams.IncludeDirs, err = f.IsIncludeDirs(false)
+	if err != nil {
+		return
+	}
+	downloadParams.Flat, err = f.IsFlat(false)
+	if err != nil {
+		return
+	}
+	downloadParams.Explode, err = f.IsExplode(false)
+	if err != nil {
+		return
+	}
+	downloadParams.BypassArchiveInspection, err = f.IsBypassArchiveInspection(false)
+	if err != nil {
+		return
+	}
+	downloadParams.ValidateSymlink, err = f.IsValidateSymlinks(false)
+	if err != nil {
+		return
+	}
+	downloadParams.ExcludeArtifacts, err = f.IsExcludeArtifacts(false)
+	if err != nil {
+		return
+	}
+	downloadParams.IncludeDeps, err = f.IsIncludeDeps(false)
+	if err != nil {
+		return
+	}
+	downloadParams.Transitive, err = f.IsTransitive(false)
+	if err != nil {
+		return
+	}
+	downloadParams.PublicGpgKey = f.GetPublicGpgKey()
+	return
+}
+
+func saveBuildDependencies(buildCfg *jfrogBuild.BuildConfiguration, dependencies []entities.Dependency) error {
+	logrus.Debug("Saving ", strconv.Itoa(len(dependencies)), " dependencies.")
+	buildName, err := buildCfg.GetBuildName()
+	if err != nil {
+		return err
+	}
+	buildNumber, err := buildCfg.GetBuildNumber()
+	if err != nil {
+		return err
+	}
+	return jfrogBuild.SavePartialBuildInfo(buildName, buildNumber, buildCfg.GetProject(), func(partial *entities.Partial) {
+		partial.ModuleType = entities.Generic
+		partial.Dependencies = dependencies
+		partial.ModuleId = buildCfg.GetModule()
+	})
 }
 
 func normalizeHostToolError(tool string, err error) error {
@@ -461,6 +878,64 @@ func (ctx *runtimeContext) buildConfiguration() *jfrogBuild.BuildConfiguration {
 	return jfrogBuild.NewBuildConfiguration(ctx.args.BuildName, ctx.args.BuildNumber, ctx.args.Module, ctx.args.Project)
 }
 
+func (ctx *runtimeContext) checkContext() error {
+	if ctx.ctx == nil {
+		return nil
+	}
+	return ctx.ctx.Err()
+}
+
+func (ctx *runtimeContext) buildArtAuthDetails() (clientAuth.ServiceDetails, error) {
+	sanitizedURL, err := sanitizeURL(ctx.args.URL)
+	if err != nil {
+		return nil, err
+	}
+	details := artifactoryAuth.NewArtifactoryDetails()
+	details.SetUrl(sanitizedURL)
+	switch {
+	case ctx.args.Username != "" && ctx.args.Password != "":
+		details.SetUser(ctx.args.Username)
+		details.SetPassword(ctx.args.Password)
+	case ctx.args.APIKey != "":
+		details.SetUser(ctx.args.Username)
+		details.SetApiKey(ctx.args.APIKey)
+	case ctx.args.AccessToken != "":
+		details.SetUser(ctx.args.Username)
+		details.SetAccessToken(ctx.args.AccessToken)
+	default:
+		return nil, fmt.Errorf("either username/password, api key or access token needs to be set")
+	}
+	return details, nil
+}
+
+func (ctx *runtimeContext) createServiceManager(dryRun bool, threads int) (artifactory.ArtifactoryServicesManager, error) {
+	if ctx.newManager != nil {
+		return ctx.newManager(dryRun, threads)
+	}
+	authDetails, err := ctx.buildArtAuthDetails()
+	if err != nil {
+		return nil, err
+	}
+	certsPath, err := coreutils.GetJfrogCertsDir()
+	if err != nil {
+		return nil, err
+	}
+	cfg, err := clientConfig.NewConfigBuilder().
+		SetServiceDetails(authDetails).
+		SetCertificatesPath(certsPath).
+		SetInsecureTls(parseBoolOrDefault(false, ctx.args.Insecure)).
+		SetDryRun(dryRun).
+		SetThreads(threads).
+		SetContext(ctx.ctx).
+		SetHttpRetries(ctx.args.Retries).
+		SetHttpRetryWaitMilliSecs(0).
+		Build()
+	if err != nil {
+		return nil, err
+	}
+	return artifactory.New(cfg)
+}
+
 func (ctx *runtimeContext) createServerDetails(serverID string) (*jfrogConfig.ServerDetails, error) {
 	sanitizedURL, err := sanitizeURL(ctx.args.URL)
 	if err != nil {
@@ -479,8 +954,7 @@ func (ctx *runtimeContext) createServerDetails(serverID string) (*jfrogConfig.Se
 		serverDetails.User = ctx.args.Username
 		serverDetails.Password = ctx.args.Password
 	case ctx.args.APIKey != "":
-		// The JFrog Go config type does not expose a dedicated API key field.
-		// Passing the API key through AccessToken preserves client-go's API-key detection path.
+		// Temporary wrapper-path compatibility: jfrog-cli-core ServerDetails does not expose ApiKey.
 		serverDetails.User = ctx.args.Username
 		serverDetails.AccessToken = ctx.args.APIKey
 	case ctx.args.AccessToken != "":
@@ -537,29 +1011,32 @@ func (ctx *runtimeContext) mavenConfig(resolveServerID, deployServerID string) p
 			SnapshotRepo: ctx.args.DeploySnapshotRepo,
 		},
 	}
-	if runtime.GOOS == "windows" {
-		if cfg.Resolver.ReleaseRepo == "" {
+
+	if ctx.args.DeployRepo != "" {
+		cfg.Deployer.ReleaseRepo = ctx.args.DeployRepo
+		cfg.Deployer.SnapshotRepo = ctx.args.DeployRepo
+	}
+
+	hasExplicitResolver := ctx.args.ResolveReleaseRepo != "" || ctx.args.ResolveSnapshotRepo != ""
+	hasExplicitDeployer := ctx.args.DeployReleaseRepo != "" || ctx.args.DeploySnapshotRepo != "" || ctx.args.DeployRepo != ""
+
+	if currentGOOS == "windows" {
+		if !hasExplicitResolver && cfg.Resolver.ReleaseRepo == "" {
 			cfg.Resolver.ReleaseRepo = "libs-release"
 		}
-		if cfg.Resolver.SnapshotRepo == "" {
+		if !hasExplicitResolver && cfg.Resolver.SnapshotRepo == "" {
 			cfg.Resolver.SnapshotRepo = "libs-snapshot"
 		}
-		if cfg.Deployer.ReleaseRepo == "" {
+		if !hasExplicitDeployer && cfg.Deployer.ReleaseRepo == "" {
 			cfg.Deployer.ReleaseRepo = "libs-release-local"
 		}
-		if cfg.Deployer.SnapshotRepo == "" {
+		if !hasExplicitDeployer && cfg.Deployer.SnapshotRepo == "" {
 			cfg.Deployer.SnapshotRepo = "libs-snapshot-local"
 		}
 	}
-	if ctx.args.DeployReleaseRepo == "" && ctx.args.DeploySnapshotRepo == "" && ctx.args.DeployRepo == "" {
+
+	if !hasExplicitDeployer {
 		cfg.Deployer = jfrogProject.Repository{}
-	}
-	if ctx.args.ResolveReleaseRepo == "" && ctx.args.ResolveSnapshotRepo == "" {
-		cfg.Resolver = jfrogProject.Repository{
-			ServerId:     resolveServerID,
-			ReleaseRepo:  cfg.Resolver.ReleaseRepo,
-			SnapshotRepo: cfg.Resolver.SnapshotRepo,
-		}
 	}
 	return cfg
 }
@@ -585,7 +1062,7 @@ func (ctx *runtimeContext) gradleConfig(resolveServerID, deployServerID string, 
 			ArtifactsPattern: "[organization]/[module]/[revision]/[artifact]-[revision](-[classifier]).[ext]",
 		},
 	}
-	if runtime.GOOS == "windows" && !publish {
+	if currentGOOS == "windows" && !publish {
 		if cfg.Resolver.Repo == "" {
 			cfg.Resolver.Repo = "libs-release"
 		}
@@ -599,7 +1076,7 @@ func (ctx *runtimeContext) gradleConfig(resolveServerID, deployServerID string, 
 		cfg.Deployer.ServerId = deployServerID
 	}
 	if ctx.args.RepoResolve == "" && ctx.args.ResolveReleaseRepo == "" && ctx.args.ResolveSnapshotRepo == "" {
-		if runtime.GOOS != "windows" || publish {
+		if currentGOOS != "windows" || publish {
 			cfg.Resolver = jfrogProject.Repository{ServerId: cfg.Resolver.ServerId}
 		}
 	}
@@ -655,35 +1132,28 @@ func (ctx *runtimeContext) downloadSpec() (*jfrogSpec.SpecFiles, error) {
 		Recursive(true).
 		Flat(false).
 		BuildSpec()
-	if ctx.args.Module != "" {
-		specFiles.Files[0].Build = buildReference(ctx.args.BuildName, ctx.args.BuildNumber)
-	}
 	return specFiles, nil
 }
 
-func (ctx *runtimeContext) buildDependenciesSpecAndServer() (*jfrogSpec.SpecFiles, *jfrogConfig.ServerDetails, error) {
+func (ctx *runtimeContext) buildDependenciesSpec() (*jfrogSpec.SpecFiles, bool, error) {
 	specPath := ctx.args.SpecPath
 	if specPath == "" && ctx.args.Spec != "" {
 		resolvedPath, err := ctx.resolveSpecPath("", ctx.args.Spec)
 		if err != nil {
-			return nil, nil, err
+			return nil, false, err
 		}
 		specPath = resolvedPath
 	}
 	if specPath != "" {
 		specFiles, err := jfrogSpec.CreateSpecFromFile(specPath, coreutils.SpecVarsStringToMap(ctx.args.SpecVars))
 		if err != nil {
-			return nil, nil, err
+			return nil, false, err
 		}
 		if parseBoolOrDefault(false, ctx.args.FromRt) {
-			serverDetails, err := ctx.createServerDetails("")
-			if err != nil {
-				return nil, nil, err
-			}
-			return specFiles, serverDetails, nil
+			return specFiles, true, nil
 		}
 		commonCliUtils.FixWinPathsForFileSystemSourcedCmds(specFiles, true, false)
-		return specFiles, nil, nil
+		return specFiles, false, nil
 	}
 
 	specFiles := jfrogSpec.NewBuilder().
@@ -694,14 +1164,10 @@ func (ctx *runtimeContext) buildDependenciesSpecAndServer() (*jfrogSpec.SpecFile
 		BuildSpec()
 
 	if parseBoolOrDefault(false, ctx.args.FromRt) {
-		serverDetails, err := ctx.createServerDetails("")
-		if err != nil {
-			return nil, nil, err
-		}
-		return specFiles, serverDetails, nil
+		return specFiles, true, nil
 	}
 	commonCliUtils.FixWinPathsForFileSystemSourcedCmds(specFiles, false, ctx.args.Exclusions != "")
-	return specFiles, nil, nil
+	return specFiles, false, nil
 }
 
 func (ctx *runtimeContext) resolveSpecPath(specPath, specValue string) (string, error) {
@@ -784,32 +1250,29 @@ func ensurePemFile(path, contents string) error {
 }
 
 func defaultJfrogCertsDir() string {
-	if runtime.GOOS == "windows" {
+	if currentGOOS == "windows" {
 		return "C:/users/ContainerAdministrator/.jfrog/security/certs"
 	}
 	return "/root/.jfrog/security/certs"
-}
-
-func threadsOrDefault() int {
-	return 3
 }
 
 func (ctx *runtimeContext) threadsOrDefault() int {
 	if ctx.args.Threads > 0 {
 		return ctx.args.Threads
 	}
-	return threadsOrDefault()
+	return defaultThreads
 }
 
-func shellSplit(input string) ([]string, error) {
+func shellSplitBestEffort(input string) []string {
 	if strings.TrimSpace(input) == "" {
-		return []string{}, nil
+		return []string{}
 	}
 	parts, err := shlex.Split(input)
 	if err == nil {
-		return parts, nil
+		return parts
 	}
-	return strings.Fields(input), nil
+	logrus.WithError(err).Warn("failed to parse quoted arguments with shlex; falling back to whitespace splitting")
+	return strings.Fields(input)
 }
 
 func splitList(raw string) []string {

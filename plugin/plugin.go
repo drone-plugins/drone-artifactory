@@ -6,6 +6,7 @@ package plugin
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -100,13 +101,11 @@ type Args struct {
 }
 
 // Exec executes the plugin.
-func Exec(ctx context.Context, args Args) error {
-	_ = ctx
-
+func Exec(ctx context.Context, args Args) (err error) {
 	logrus.Println("Checking RT commands")
 	if args.BuildTool != "" || args.Command != "" {
 		logrus.Println("Handling rt command handleRtCommand")
-		return HandleRtCommands(args)
+		return HandleRtCommands(ctx, args)
 	}
 
 	enableProxy := parseBoolOrDefault(false, args.EnableProxy)
@@ -115,21 +114,25 @@ func Exec(ctx context.Context, args Args) error {
 		setSecureConnectProxies()
 	}
 
-	runtimeCtx, err := newRuntimeContext(args)
+	runtimeCtx, err := newRuntimeContext(ctx, args)
 	if err != nil {
 		return err
 	}
-	defer runtimeCtx.Close()
+	defer func() {
+		err = errors.Join(err, runtimeCtx.Close())
+	}()
 
 	return runtimeCtx.runDefaultUpload()
 }
 
-func publishBuildInfo(args Args) error {
-	runtimeCtx, err := newRuntimeContext(args)
+func publishBuildInfo(ctx context.Context, args Args) (err error) {
+	runtimeCtx, err := newRuntimeContext(ctx, args)
 	if err != nil {
 		return err
 	}
-	defer runtimeCtx.Close()
+	defer func() {
+		err = errors.Join(err, runtimeCtx.Close())
+	}()
 
 	return runtimeCtx.publishBuildInfo()
 }
