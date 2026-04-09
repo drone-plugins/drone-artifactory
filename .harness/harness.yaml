@@ -1,6 +1,4 @@
 pipeline:
-  name: drone-artifactory-dp-org
-  identifier: droneartifactorydporg
   projectIdentifier: Drone_Plugins
   orgIdentifier: default
   tags: {}
@@ -209,9 +207,9 @@ pipeline:
                       type: Run
                       spec:
                         connectorRef: Plugins_Docker_Hub_Connector
-                        image: golang:1.25.7
+                        image: golang:1.24-windowsservercore-1809
                         shell: Sh
-                        command: go build -v -ldflags "-X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
+                        command: go build -v -buildvcs=false -ldflags "-X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
                       when:
                         stageStatus: Success
                         condition: |
@@ -222,9 +220,9 @@ pipeline:
                       type: Run
                       spec:
                         connectorRef: Plugins_Docker_Hub_Connector
-                        image: golang:1.25.7
+                        image: golang:1.24-windowsservercore-1809
                         shell: Sh
-                        command: go build -v -ldflags "-X main.version=<+codebase.tag> -X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
+                        command: go build -v -buildvcs=false -ldflags "-X main.version=<+codebase.tag> -X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
                       when:
                         stageStatus: Success
                         condition: <+codebase.build.type> == "tag"
@@ -295,7 +293,7 @@ pipeline:
                         connectorRef: Plugins_Docker_Hub_Connector
                         image: golang:1.25.7
                         shell: Sh
-                        command: go build -v -ldflags "-X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
+                        command: go build -v -buildvcs=false -ldflags "-X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
                       when:
                         stageStatus: Success
                         condition: |
@@ -308,7 +306,7 @@ pipeline:
                         connectorRef: Plugins_Docker_Hub_Connector
                         image: golang:1.25.7
                         shell: Sh
-                        command: go build -v -ldflags "-X main.version=<+codebase.tag> -X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
+                        command: go build -v -buildvcs=false -ldflags "-X main.version=<+codebase.tag> -X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
                       when:
                         stageStatus: Success
                         condition: <+codebase.build.type> == "tag"
@@ -345,6 +343,367 @@ pipeline:
                         condition: |
                           <+codebase.build.type> == "branch"
             description: ""
+        - stage:
+            name: rf-linux-amd64
+            identifier: rf_linuxamd64
+            type: CI
+            spec:
+              cloneCodebase: true
+              caching:
+                enabled: false
+                paths: []
+              platform:
+                os: Linux
+                arch: Amd64
+              runtime:
+                type: Cloud
+                spec: {}
+              execution:
+                steps:
+                  - step:
+                      type: GitClone
+                      name: Clone RF Dockerfiles
+                      identifier: clone_rf
+                      spec:
+                        connectorRef: RapidFortPlugins
+                        build:
+                          type: branch
+                          spec:
+                            branch: main
+                        cloneDirectory: rf-plugins
+                  - step:
+                      name: Build binaries - branch
+                      identifier: Run_1
+                      type: Run
+                      spec:
+                        connectorRef: Plugins_Docker_Hub_Connector
+                        image: golang:1.25.7
+                        shell: Sh
+                        command: go build -v -ldflags "-X main.build=<+pipeline.sequenceId>" -a -o release/linux/amd64/plugin
+                      when:
+                        stageStatus: Success
+                        condition: |
+                          <+codebase.build.type> != "tag"
+                  - step:
+                      name: Build binaries - tag
+                      identifier: Tag_Build_Linux_AMD64
+                      type: Run
+                      spec:
+                        connectorRef: Plugins_Docker_Hub_Connector
+                        image: golang:1.25.7
+                        shell: Sh
+                        command: go build -v -ldflags "-X main.version=<+codebase.tag> -X main.build=<+pipeline.sequenceId>" -a -o release/linux/amd64/plugin
+                      when:
+                        stageStatus: Success
+                        condition: <+codebase.build.type> == "tag"
+                  - step:
+                      type: Plugin
+                      name: RF Build and Push on Tag
+                      identifier: rf_docker_build_push_tag
+                      spec:
+                        connectorRef: Plugins_Docker_Hub_Connector
+                        image: plugins/docker
+                        settings:
+                          username: <+secrets.getValue("harnesssecureusername")>
+                          password: <+secrets.getValue("dockerHarnessSecurePwd")>
+                          repo: harnesssecure/artifactory
+                          dockerfile: rf-plugins/drone-artifactory/Dockerfile.linux.amd64.rf
+                          auto_tag: "true"
+                          auto_tag_suffix: linux-amd64
+                          base_image_username: <+secrets.getValue("harness0HARUsername")>
+                          base_image_password: <+secrets.getValue("harness0HARPAT")>
+                          base_image_registry: harness0.harness.io/oci/docker_artifacts
+                      when:
+                        stageStatus: Success
+                        condition: <+codebase.build.type> == "tag"
+                  - step:
+                      type: BuildAndPushDockerRegistry
+                      name: RF Build and Push on Branch
+                      identifier: rf_build_push_branch
+                      spec:
+                        connectorRef: harnesssecure
+                        repo: harnesssecure/artifactory
+                        tags:
+                          - linux-amd64
+                        caching: false
+                        dockerfile: rf-plugins/drone-artifactory/Dockerfile.linux.amd64.rf
+                        envVariables:
+                          PLUGIN_BASE_IMAGE_USERNAME: <+secrets.getValue("harness0HARUsername")>
+                          PLUGIN_BASE_IMAGE_PASSWORD: <+secrets.getValue("harness0HARPAT")>
+                          PLUGIN_BASE_IMAGE_REGISTRY: harness0.harness.io/oci/docker_artifacts
+                      when:
+                        stageStatus: Success
+                        condition: |
+                          <+codebase.build.type> == "branch"
+            description: ""
+        - stage:
+            name: rf-linux-arm64
+            identifier: rf_linuxarm64
+            type: CI
+            spec:
+              cloneCodebase: true
+              caching:
+                enabled: false
+                paths: []
+              platform:
+                os: Linux
+                arch: Arm64
+              runtime:
+                type: Cloud
+                spec: {}
+              execution:
+                steps:
+                  - step:
+                      type: GitClone
+                      name: Clone RF Dockerfiles
+                      identifier: clone_rf
+                      spec:
+                        connectorRef: RapidFortPlugins
+                        build:
+                          type: branch
+                          spec:
+                            branch: main
+                        cloneDirectory: rf-plugins
+                  - step:
+                      name: Build binaries - branch
+                      identifier: Run_1
+                      type: Run
+                      spec:
+                        connectorRef: Plugins_Docker_Hub_Connector
+                        image: golang:1.25.7
+                        shell: Sh
+                        command: go build -v -ldflags "-X main.build=<+pipeline.sequenceId>" -a -o release/linux/arm64/plugin
+                      when:
+                        stageStatus: Success
+                        condition: |
+                          <+codebase.build.type> != "tag"
+                  - step:
+                      name: Build binaries - tag
+                      identifier: Tag_Build_Linux_ARM64
+                      type: Run
+                      spec:
+                        connectorRef: Plugins_Docker_Hub_Connector
+                        image: golang:1.25.7
+                        shell: Sh
+                        command: go build -v -ldflags "-X main.version=<+codebase.tag> -X main.build=<+pipeline.sequenceId>" -a -o release/linux/arm64/plugin
+                      when:
+                        stageStatus: Success
+                        condition: <+codebase.build.type> == "tag"
+                  - step:
+                      type: Plugin
+                      name: RF Build and Push on Tag
+                      identifier: rf_docker_build_push_tag
+                      spec:
+                        connectorRef: Plugins_Docker_Hub_Connector
+                        image: plugins/docker
+                        settings:
+                          username: <+secrets.getValue("harnesssecureusername")>
+                          password: <+secrets.getValue("dockerHarnessSecurePwd")>
+                          repo: harnesssecure/artifactory
+                          dockerfile: rf-plugins/drone-artifactory/Dockerfile.linux.arm64.rf
+                          auto_tag: "true"
+                          auto_tag_suffix: linux-arm64
+                          base_image_username: <+secrets.getValue("harness0HARUsername")>
+                          base_image_password: <+secrets.getValue("harness0HARPAT")>
+                          base_image_registry: harness0.harness.io/oci/docker_artifacts
+                      when:
+                        stageStatus: Success
+                        condition: <+codebase.build.type> == "tag"
+                  - step:
+                      type: BuildAndPushDockerRegistry
+                      name: RF Build and Push on Branch
+                      identifier: rf_build_push_branch
+                      spec:
+                        connectorRef: harnesssecure
+                        repo: harnesssecure/artifactory
+                        tags:
+                          - linux-arm64
+                        caching: false
+                        dockerfile: rf-plugins/drone-artifactory/Dockerfile.linux.arm64.rf
+                        envVariables:
+                          PLUGIN_BASE_IMAGE_USERNAME: <+secrets.getValue("harness0HARUsername")>
+                          PLUGIN_BASE_IMAGE_PASSWORD: <+secrets.getValue("harness0HARPAT")>
+                          PLUGIN_BASE_IMAGE_REGISTRY: harness0.harness.io/oci/docker_artifacts
+                      when:
+                        stageStatus: Success
+                        condition: |
+                          <+codebase.build.type> == "branch"
+            description: ""
+        - stage:
+            name: win-1809-amd64-rf
+            identifier: win1809amd64rf
+            type: CI
+            spec:
+              cloneCodebase: true
+              caching:
+                enabled: false
+                paths: []
+              infrastructure:
+                type: VM
+                spec:
+                  type: Pool
+                  spec:
+                    poolName: windows-2019
+                    os: Windows
+              execution:
+                steps:
+                  - step:
+                      type: GitClone
+                      name: Clone RF Dockerfiles
+                      identifier: clone_rf
+                      spec:
+                        connectorRef: RapidFortPlugins
+                        build:
+                          type: branch
+                          spec:
+                            branch: main
+                        cloneDirectory: rf-plugins
+                  - step:
+                      name: Build binaries - branch
+                      identifier: Run_1
+                      type: Run
+                      spec:
+                        connectorRef: Plugins_Docker_Hub_Connector
+                        image: golang:1.24-windowsservercore-1809
+                        shell: Sh
+                        command: go build -v -buildvcs=false -ldflags "-X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
+                      when:
+                        stageStatus: Success
+                        condition: |
+                          <+codebase.build.type> != "tag"
+                  - step:
+                      name: Build binaries - tag
+                      identifier: Tag_Build_Windows_LTSC2022
+                      type: Run
+                      spec:
+                        connectorRef: Plugins_Docker_Hub_Connector
+                        image: golang:1.24-windowsservercore-1809
+                        shell: Sh
+                        command: go build -v -buildvcs=false -ldflags "-X main.version=<+codebase.tag> -X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
+                      when:
+                        stageStatus: Success
+                        condition: <+codebase.build.type> == "tag"
+                  - step:
+                      type: Plugin
+                      name: RF Build and Push on Tag
+                      identifier: RF_Build_and_Push_on_Tag
+                      spec:
+                        connectorRef: Plugins_Docker_Hub_Connector
+                        image: plugins/docker
+                        settings:
+                          username: <+secrets.getValue("harnesssecureusername")>
+                          password: <+secrets.getValue("dockerHarnessSecurePwd")>
+                          repo: harnesssecure/artifactory
+                          dockerfile: rf-plugins/drone-artifactory/Dockerfile.windows.amd64.1809
+                          auto_tag: "true"
+                          auto_tag_suffix: windows-1809-amd64
+                      when:
+                        stageStatus: Success
+                        condition: <+codebase.build.type> == "tag"
+                  - step:
+                      type: BuildAndPushDockerRegistry
+                      name: RF Build and Push on Branch
+                      identifier: rf_build_push_branch
+                      spec:
+                        connectorRef: harnesssecure
+                        repo: harnesssecure/artifactory
+                        tags:
+                          - windows-1809-amd64
+                        caching: false
+                        dockerfile: rf-plugins/drone-artifactory/Dockerfile.windows.amd64.1809
+                      when:
+                        stageStatus: Success
+                        condition: |
+                          <+codebase.build.type> == "branch"
+            description: ""
+            delegateSelectors:
+              - windows-vm
+        - stage:
+            name: win-ltsc2022-amd64-rf
+            identifier: winltsc2022amd64rf
+            type: CI
+            spec:
+              cloneCodebase: true
+              caching:
+                enabled: false
+                paths: []
+              platform:
+                os: Windows
+                arch: Amd64
+              runtime:
+                type: Cloud
+                spec: {}
+              execution:
+                steps:
+                  - step:
+                      type: GitClone
+                      name: Clone RF Dockerfiles
+                      identifier: clone_rf
+                      spec:
+                        connectorRef: RapidFortPlugins
+                        build:
+                          type: branch
+                          spec:
+                            branch: main
+                        cloneDirectory: rf-plugins
+                  - step:
+                      name: Build binaries - branch
+                      identifier: Run_1
+                      type: Run
+                      spec:
+                        connectorRef: Plugins_Docker_Hub_Connector
+                        image: golang:1.25.7
+                        shell: Sh
+                        command: go build -v -buildvcs=false -ldflags "-X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
+                      when:
+                        stageStatus: Success
+                        condition: |
+                          <+codebase.build.type> != "tag"
+                  - step:
+                      name: Build binaries - tag
+                      identifier: Tag_Build_Windows_LTSC2022
+                      type: Run
+                      spec:
+                        connectorRef: Plugins_Docker_Hub_Connector
+                        image: golang:1.25.7
+                        shell: Sh
+                        command: go build -v -buildvcs=false -ldflags "-X main.version=<+codebase.tag> -X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
+                      when:
+                        stageStatus: Success
+                        condition: <+codebase.build.type> == "tag"
+                  - step:
+                      type: Plugin
+                      name: RF Build and Push on Tag
+                      identifier: RF_Build_and_Push_on_Tag
+                      spec:
+                        connectorRef: Plugins_Docker_Hub_Connector
+                        image: plugins/docker
+                        settings:
+                          username: <+secrets.getValue("harnesssecureusername")>
+                          password: <+secrets.getValue("dockerHarnessSecurePwd")>
+                          repo: harnesssecure/artifactory
+                          dockerfile: rf-plugins/drone-artifactory/Dockerfile.windows.amd64.ltsc2022
+                          auto_tag: "true"
+                          auto_tag_suffix: windows-ltsc2022-amd64
+                      when:
+                        stageStatus: Success
+                        condition: <+codebase.build.type> == "tag"
+                  - step:
+                      type: BuildAndPushDockerRegistry
+                      name: RF Build and Push on Branch
+                      identifier: rf_build_push_branch
+                      spec:
+                        connectorRef: harnesssecure
+                        repo: harnesssecure/artifactory
+                        tags:
+                          - windows-ltsc2022-amd64
+                        caching: false
+                        dockerfile: rf-plugins/drone-artifactory/Dockerfile.windows.amd64.ltsc2022
+                      when:
+                        stageStatus: Success
+                        condition: |
+                          <+codebase.build.type> == "branch"
+            description: ""
     - stage:
         name: Manifest
         identifier: Manifest
@@ -363,6 +722,18 @@ pipeline:
           execution:
             steps:
               - step:
+                  type: GitClone
+                  name: Clone RF Manifest Templates
+                  identifier: clone_rf_manifest
+                  spec:
+                    connectorRef: RapidFortPlugins
+                    build:
+                      type: branch
+                      spec:
+                        branch: main
+                    cloneDirectory: rf-plugins
+                  contextType: Pipeline
+              - step:
                   type: Plugin
                   name: Manifest
                   identifier: Manifest
@@ -375,6 +746,23 @@ pipeline:
                       auto_tag: "true"
                       ignore_missing: "true"
                       spec: docker/manifest.tmpl
+                  when:
+                    stageStatus: Success
+                    condition: |
+                      <+codebase.build.type> == "tag" || <+codebase.build.type> == "branch"
+              - step:
+                  type: Plugin
+                  name: RF Manifest
+                  identifier: rf_manifest
+                  spec:
+                    connectorRef: Plugins_Docker_Hub_Connector
+                    image: plugins/manifest
+                    settings:
+                      username: <+secrets.getValue("harnesssecureusername")>
+                      password: <+secrets.getValue("dockerHarnessSecurePwd")>
+                      auto_tag: "true"
+                      ignore_missing: "true"
+                      spec: rf-plugins/drone-artifactory/manifest.tmpl
                   when:
                     stageStatus: Success
                     condition: |
@@ -405,7 +793,7 @@ pipeline:
                   when:
                     stageStatus: Success
                     condition: <+codebase.build.type> == "tag"
-                contextType: Pipeline
+                  contextType: Pipeline
               - step:
                   type: Plugin
                   name: Release
@@ -428,3 +816,5 @@ pipeline:
             required: false
             value: drone-plugins
   allowStageExecutions: true
+  identifier: droneartifactorydporg
+  name: drone-artifactory-dp-org
