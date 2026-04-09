@@ -4,7 +4,7 @@ inputSet:
   orgIdentifier: default
   projectIdentifier: Drone_Plugins
   pipeline:
-    identifier: droneartifactoryharness
+    identifier: droneartifactorydporg
     properties:
       ci:
         codebase:
