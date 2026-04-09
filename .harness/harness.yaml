@@ -793,7 +793,7 @@ pipeline:
                   when:
                     stageStatus: Success
                     condition: <+codebase.build.type> == "tag"
-                  contextType: Pipeline
+                contextType: Pipeline
               - step:
                   type: Plugin
                   name: Release
