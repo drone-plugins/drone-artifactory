@@ -1,13 +1,13 @@
 package plugin
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"reflect"
 	"runtime"
-	"strings"
 	"sync"
 
 	"github.com/sirupsen/logrus"
@@ -24,31 +24,15 @@ const (
 	tmpServerId  = "tmpServerId"
 )
 
-func HandleRtCommands(args Args) error {
-
-	commandsList, err := GetRtCommandsList(args)
+func HandleRtCommands(ctx context.Context, args Args) (err error) {
+	runtimeCtx, err := newRuntimeContext(ctx, args)
 	if err != nil {
-		logrus.Println("Error Unable to get rt commands list err = ", err)
 		return err
 	}
-
-	err = WriteKnownGoodServerCertsForTls(args)
-	if err != nil {
-		logrus.Println("Error Unable to write TLS certs err = ", err)
-		return err
-	}
-
-	for _, cmd := range commandsList {
-		execArgs := []string{getJfrogBin()}
-		execArgs = append(execArgs, cmd...)
-		err := ExecCommand(args, execArgs)
-		if err != nil {
-			logrus.Println("Error Unable to run err = ", err)
-			return err
-		}
-	}
-
-	return err
+	defer func() {
+		err = errors.Join(err, runtimeCtx.Close())
+	}()
+	return runtimeCtx.runRTCommand()
 }
 
 func WriteKnownGoodServerCertsForTls(args Args) error {
@@ -153,55 +137,6 @@ func GetRtCommandsList(args Args) ([][]string, error) {
 		commandsList, err = GetBuildDiscardCommandArgs(args)
 	}
 	return commandsList, err
-}
-
-func GetShellForOs(osName string) (string, string) {
-
-	if runtime.GOOS == "windows" {
-		// First check for PowerShell Core (pwsh.exe) which is used in PowerShell Nanoserver
-		if _, err := os.Stat("C:/Program Files/PowerShell/pwsh.exe"); err == nil {
-			return "pwsh", "-Command"
-		}
-
-		// Fall back to traditional PowerShell
-		return "powershell", "-Command"
-	}
-
-	return "sh", "-c"
-}
-
-func ExecCommand(args Args, cmdArgs []string) error {
-
-	cmdStr := strings.Join(cmdArgs[:], " ")
-
-	shell, shArg := GetShellForOs(runtime.GOOS)
-
-	logrus.Println()
-	logrus.Printf("%s %s %s", shell, shArg, cmdStr)
-	logrus.Println()
-
-	cmd := exec.Command(shell, shArg, cmdStr)
-	cmd.Env = os.Environ()
-	cmd.Env = append(cmd.Env, "JFROG_CLI_OFFER_CONFIG=false")
-
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	trace(cmd)
-
-	err := cmd.Run()
-	if err != nil {
-		logrus.Println(" Error: ", err)
-		return err
-	}
-
-	if args.PublishBuildInfo {
-		if err := publishBuildInfo(args); err != nil {
-			logrus.Println("Error publishing build info: ", err)
-			return err
-		}
-	}
-
-	return nil
 }
 
 type JsonTagToExeFlagMapStringItem struct {

@@ -6,11 +6,11 @@ package plugin
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -101,12 +101,11 @@ type Args struct {
 }
 
 // Exec executes the plugin.
-func Exec(ctx context.Context, args Args) error {
-
+func Exec(ctx context.Context, args Args) (err error) {
 	logrus.Println("Checking RT commands")
 	if args.BuildTool != "" || args.Command != "" {
 		logrus.Println("Handling rt command handleRtCommand")
-		return HandleRtCommands(args)
+		return HandleRtCommands(ctx, args)
 	}
 
 	enableProxy := parseBoolOrDefault(false, args.EnableProxy)
@@ -115,161 +114,27 @@ func Exec(ctx context.Context, args Args) error {
 		setSecureConnectProxies()
 	}
 
-	// write code here
-	if args.URL == "" {
-		return fmt.Errorf("JFrog Artifactory URL must be set, or anonymous access is not permitted")
-	}
-
-	cmdArgs := []string{getJfrogBin(), "rt", "u", fmt.Sprintf("--url %s", args.URL)}
-	if args.Retries != 0 {
-		cmdArgs = append(cmdArgs, fmt.Sprintf("--retries=%d", args.Retries))
-	}
-
-	// Set authentication params
-	cmdArgs, error := setAuthParams(cmdArgs, args)
-	if error != nil {
-		return error
-	}
-
-	flat := parseBoolOrDefault(false, args.Flat)
-	cmdArgs = append(cmdArgs, fmt.Sprintf("--flat=%s", strconv.FormatBool(flat)))
-
-	if args.Threads > 0 {
-		cmdArgs = append(cmdArgs, fmt.Sprintf("--threads=%d", args.Threads))
-	}
-	// Set insecure flag
-	insecure := parseBoolOrDefault(false, args.Insecure)
-	if insecure {
-		cmdArgs = append(cmdArgs, "--insecure-tls")
-	}
-
-	// Add --build-number and --build-name flags if provided
-	if args.BuildNumber != "" {
-		cmdArgs = append(cmdArgs, fmt.Sprintf("--build-number=%s", args.BuildNumber))
-	}
-	if args.BuildName != "" {
-		cmdArgs = append(cmdArgs, fmt.Sprintf("--build-name='%s'", args.BuildName))
-	}
-
-	// create pem file
-	if args.PEMFileContents != "" && !insecure {
-		var path string
-		// figure out path to write pem file
-		if args.PEMFilePath == "" {
-			if runtime.GOOS == "windows" {
-				path = "C:/users/ContainerAdministrator/.jfrog/security/certs/cert.pem"
-			} else {
-				path = "/root/.jfrog/security/certs/cert.pem"
-			}
-		} else {
-			path = args.PEMFilePath
-		}
-		fmt.Printf("Creating pem file at %q\n", path)
-		// write pen contents to path
-		if _, err := os.Stat(path); os.IsNotExist(err) {
-			// remove filename from path
-			dir := filepath.Dir(path)
-			pemFolderErr := os.MkdirAll(dir, 0700)
-			if pemFolderErr != nil {
-				return fmt.Errorf("error creating pem folder: %s", pemFolderErr)
-			}
-			// write pem contents
-			pemWriteErr := os.WriteFile(path, []byte(args.PEMFileContents), 0600)
-			if pemWriteErr != nil {
-				return fmt.Errorf("error writing pem file: %s", pemWriteErr)
-			}
-			fmt.Printf("Successfully created pem file at %q\n", path)
-		}
-	}
-	// Take in spec file or use source/target arguments
-	if args.Spec != "" {
-		cmdArgs = append(cmdArgs, fmt.Sprintf("--spec=%s", args.Spec))
-		if args.SpecVars != "" {
-			cmdArgs = append(cmdArgs, fmt.Sprintf("--spec-vars='%s'", args.SpecVars))
-		}
-	} else {
-		filteredTargetProps := filterTargetProps(args.TargetProps)
-		if filteredTargetProps != "" {
-			cmdArgs = append(cmdArgs, fmt.Sprintf("--target-props='%s'", filteredTargetProps))
-		}
-		if args.Source == "" {
-			return fmt.Errorf("source file needs to be set")
-		}
-		if args.Target == "" {
-			return fmt.Errorf("target path needs to be set")
-		}
-		cmdArgs = append(cmdArgs, fmt.Sprintf("\"%s\"", args.Source), args.Target)
-	}
-
-	cmdStr := strings.Join(cmdArgs[:], " ")
-
-	shell, shArg := getShell()
-
-	cmd := exec.Command(shell, shArg, cmdStr)
-	cmd.Env = os.Environ()
-	cmd.Env = append(cmd.Env, "JFROG_CLI_OFFER_CONFIG=false")
-
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	trace(cmd)
-
-	err := cmd.Run()
+	runtimeCtx, err := newRuntimeContext(ctx, args)
 	if err != nil {
 		return err
 	}
+	defer func() {
+		err = errors.Join(err, runtimeCtx.Close())
+	}()
 
-	// Call publishBuildInfo if PLUGIN_PUBLISH_BUILD_INFO is set to true
-	if args.PublishBuildInfo {
-		if err := publishBuildInfo(args); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return runtimeCtx.runDefaultUpload()
 }
 
-func publishBuildInfo(args Args) error {
-	if args.BuildName == "" || args.BuildNumber == "" {
-		return fmt.Errorf("both build name and build number need to be set when publishing build info")
-	}
-
-	sanitizedURL, err := sanitizeURL(args.URL)
+func publishBuildInfo(ctx context.Context, args Args) (err error) {
+	runtimeCtx, err := newRuntimeContext(ctx, args)
 	if err != nil {
 		return err
 	}
+	defer func() {
+		err = errors.Join(err, runtimeCtx.Close())
+	}()
 
-	publishCmdArgs := []string{
-		getJfrogBin(),
-		"rt",
-		"build-publish",
-		"\"" + args.BuildName + "\"",
-		"\"" + args.BuildNumber + "\"",
-		fmt.Sprintf("--url=%s", sanitizedURL),
-	}
-
-	if args.AccessToken != "" {
-		publishCmdArgs = append(publishCmdArgs, fmt.Sprintf("--access-token=%sPLUGIN_ACCESS_TOKEN", getEnvPrefix()))
-	} else if args.Username != "" && args.Password != "" {
-		publishCmdArgs = append(publishCmdArgs, fmt.Sprintf("--user=%sPLUGIN_USERNAME", getEnvPrefix()))
-		publishCmdArgs = append(publishCmdArgs, fmt.Sprintf("--password=%sPLUGIN_PASSWORD", getEnvPrefix()))
-	} else {
-		return fmt.Errorf("either access token or username/password need to be set for publishing build info")
-	}
-
-	publishCmdStr := strings.Join(publishCmdArgs, " ")
-	shell, shArg := getShell()
-	publishCmd := exec.Command(shell, shArg, publishCmdStr)
-	publishCmd.Env = os.Environ()
-	publishCmd.Env = append(publishCmd.Env, "JFROG_CLI_OFFER_CONFIG=false")
-	publishCmd.Stdout = os.Stdout
-	publishCmd.Stderr = os.Stderr
-	trace(publishCmd)
-
-	if err := publishCmd.Run(); err != nil {
-		return fmt.Errorf("error publishing build info: %s", err)
-	}
-
-	return nil
+	return runtimeCtx.publishBuildInfo()
 }
 
 // Function to filter TargetProps based on criteria
