@@ -1,6 +1,6 @@
 deps:
   run:
-    - curl -fL https://install-cli.jfrog.io | sh /dev/stdin 2.82.0
+    - curl -fL https://install-cli.jfrog.io | sh /dev/stdin 2.111.0
 run:
   binary:
     source: https://github.com/drone-plugins/drone-artifactory/releases/download/{{ release }}/plugin-{{ os }}-{{ arch }}.zst
