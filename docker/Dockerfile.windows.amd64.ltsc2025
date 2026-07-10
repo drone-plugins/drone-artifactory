@@ -1,0 +1,91 @@
+# escape=`
+
+# ---------------------------------------------------------------------------
+# drone-artifactory for Windows Server 2025 (LTSC 2025)
+# ---------------------------------------------------------------------------
+
+# Stage 1: builder -- download JFrog CLI, JDK, Maven, Gradle and certificates.
+# Uses servercore because it ships Windows PowerShell 5.1 (needed for
+# Invoke-WebRequest + Expand-Archive + certutil in a single RUN).
+FROM mcr.microsoft.com/windows/servercore:ltsc2025 AS builder
+SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
+
+# Set versions (unchanged from ltsc2022 sibling)
+ENV JDK_VERSION="17.0.8+7"
+ENV MAVEN_VERSION="3.9.4"
+ENV GRADLE_VERSION="8.3"
+
+# Create necessary directories
+RUN mkdir C:\bin | Out-Null; `
+    mkdir C:\certificates | Out-Null; `
+    mkdir C:\jdk | Out-Null; `
+    mkdir C:\maven | Out-Null; `
+    mkdir C:\gradle | Out-Null; `
+    mkdir -Path C:\users\ContainerAdministrator\.jfrog\security\certs | Out-Null
+
+# Copy CA certificates
+COPY docker/cert.windows.pem docker/cacert.pem C:\users\ContainerAdministrator\.jfrog\security\certs\
+
+# Generate CA certificates and download/install tools in a single layer
+RUN certutil -generateSSTFromWU C:\certificates\ca-certificates.sst; `
+    `
+    # Download JFrog CLI
+    Invoke-WebRequest -Uri https://releases.jfrog.io/artifactory/jfrog-cli/v2/2.68.0/jfrog-cli-windows-amd64/jfrog.exe -OutFile C:\bin\jfrog.exe; `
+    `
+    # Download and install JDK
+    Invoke-WebRequest -Uri "https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.8%2B7/OpenJDK17U-jdk_x64_windows_hotspot_17.0.8_7.zip" -OutFile "C:\jdk.zip"; `
+    Expand-Archive -Path "C:\jdk.zip" -DestinationPath "C:\jdk"; `
+    `
+    # Download and install Maven
+    Invoke-WebRequest -Uri https://repo1.maven.org/maven2/org/apache/maven/apache-maven/3.9.4/apache-maven-3.9.4-bin.zip -OutFile C:\maven.zip; `
+    Expand-Archive -Path C:\maven.zip -DestinationPath C:\maven; `
+    `
+    # Download and install Gradle
+    Invoke-WebRequest -Uri "https://services.gradle.org/distributions/gradle-8.3-bin.zip" -OutFile "C:\gradle.zip"; `
+    Expand-Archive -Path "C:\gradle.zip" -DestinationPath "C:\gradle"
+
+# Stage 2: PowerShell 7 installer stage.
+# nanoserver:ltsc2025 does not ship PowerShell, and there is no
+# mcr.microsoft.com/powershell:*-ltsc2025 base yet. We install PS 7.4.6
+# manually to preserve the same runtime shape as the ltsc2022 base image.
+FROM mcr.microsoft.com/windows/servercore:ltsc2025 AS installer-env
+SHELL ["C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", "-Command"]
+RUN $ProgressPreference = 'SilentlyContinue'; `
+    [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12; `
+    Invoke-WebRequest -Uri "https://github.com/PowerShell/PowerShell/releases/download/v7.4.6/PowerShell-7.4.6-win-x64.zip" -OutFile C:\powershell.zip -UseBasicParsing; `
+    Expand-Archive C:\powershell.zip -DestinationPath C:\PowerShell
+
+# Final image: nanoserver:ltsc2025 with PowerShell 7.4.6 + JFrog/JDK/Maven/Gradle
+# copied in from the builder stage.
+FROM mcr.microsoft.com/windows/nanoserver:ltsc2025
+
+# Create directories with proper permissions for JFrog CLI and plugin operations
+USER ContainerAdministrator
+RUN mkdir C:\bin C:\certificates C:\temp C:\uploads C:\jdk C:\maven C:\gradle
+
+# Copy certificates, JFrog CLI, JDK, Maven, and Gradle from builder stage
+COPY --from=builder C:\certificates C:\certificates
+COPY --from=builder C:\users\ContainerAdministrator\.jfrog C:\users\ContainerAdministrator\.jfrog
+COPY --from=builder C:\bin\jfrog.exe C:\bin\jfrog.exe
+COPY --from=builder C:\jdk C:\jdk
+COPY --from=builder C:\maven C:\maven
+COPY --from=builder C:\gradle C:\gradle
+
+# Copy PowerShell 7.4.6 payload from installer-env stage
+COPY --from=installer-env ["C:\\PowerShell\\", "C:\\Program Files\\PowerShell\\latest\\"]
+
+# Set environment variables
+# Note: nanoserver:ltsc2025 does NOT include Windows PowerShell 5.1, so
+# `powershell` will not resolve -- use `pwsh` (PowerShell 7) instead.
+ENV GODEBUG=netdns=go
+ENV PATH="C:\bin;C:\jdk\jdk-17.0.8+7\bin;C:\maven\apache-maven-3.9.4\bin;C:\gradle\gradle-8.3\bin;C:\Windows\System32;C:\Windows;C:\Program Files\PowerShell\latest"
+ENV JAVA_HOME="C:\jdk\jdk-17.0.8+7"
+ENV MAVEN_HOME="C:\maven\apache-maven-3.9.4"
+ENV GRADLE_HOME="C:\gradle\gradle-8.3"
+# Add environment variable to prevent interactive prompts
+ENV CI="true"
+
+# Add plugin executable
+COPY release/windows/amd64/plugin C:/bin/drone-artifactory.exe
+
+ENTRYPOINT [ "C:\\bin\\drone-artifactory.exe" ]
