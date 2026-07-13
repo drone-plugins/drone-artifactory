@@ -71,14 +71,19 @@ COPY --from=builder C:\jdk C:\jdk
 COPY --from=builder C:\maven C:\maven
 COPY --from=builder C:\gradle C:\gradle
 
-# Copy PowerShell 7.4.6 payload from installer-env stage
-COPY --from=installer-env ["C:\\PowerShell\\", "C:\\Program Files\\PowerShell\\latest\\"]
+# Copy PowerShell 7.4.6 payload from installer-env stage.
+#
+# We put it at C:\PowerShell (not C:\Program Files\PowerShell\latest) because
+# Docker's COPY on Windows silently fails (exit 1, no message) when the
+# destination path contains a space AND ends with a trailing backslash. Using
+# a space-free path sidesteps that quirk. `pwsh.exe` is on PATH either way.
+COPY --from=installer-env C:\PowerShell C:\PowerShell
 
 # Set environment variables
 # Note: nanoserver:ltsc2025 does NOT include Windows PowerShell 5.1, so
 # `powershell` will not resolve -- use `pwsh` (PowerShell 7) instead.
 ENV GODEBUG=netdns=go
-ENV PATH="C:\bin;C:\jdk\jdk-17.0.8+7\bin;C:\maven\apache-maven-3.9.4\bin;C:\gradle\gradle-8.3\bin;C:\Windows\System32;C:\Windows;C:\Program Files\PowerShell\latest"
+ENV PATH="C:\bin;C:\jdk\jdk-17.0.8+7\bin;C:\maven\apache-maven-3.9.4\bin;C:\gradle\gradle-8.3\bin;C:\Windows\System32;C:\Windows;C:\PowerShell"
 ENV JAVA_HOME="C:\jdk\jdk-17.0.8+7"
 ENV MAVEN_HOME="C:\maven\apache-maven-3.9.4"
 ENV GRADLE_HOME="C:\gradle\gradle-8.3"
