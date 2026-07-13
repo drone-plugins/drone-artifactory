@@ -704,6 +704,68 @@ pipeline:
                         condition: |
                           <+codebase.build.type> == "branch"
             description: ""
+        - stage:
+            name: win-ltsc2025-amd64
+            identifier: winltsc2025amd64
+            description: ""
+            type: CI
+            spec:
+              cloneCodebase: true
+              caching:
+                enabled: false
+                override: false
+              buildIntelligence:
+                enabled: false
+              infrastructure:
+                type: VM
+                spec:
+                  type: Pool
+                  spec:
+                    poolName: windows-2025
+                    os: Windows
+              execution:
+                steps:
+                  - step:
+                      type: Run
+                      name: Build Binaries - Branch
+                      identifier: Build_Binaries_Branch
+                      spec:
+                        connectorRef: Plugins_Docker_Hub_Connector
+                        image: golang:1.25.11
+                        shell: Sh
+                        command: go build -v -buildvcs=false -ldflags "-X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
+                      when:
+                        stageStatus: Success
+                        condition: <+codebase.build.type> != "tag"
+                  - step:
+                      type: Run
+                      name: Build Binaries TAG
+                      identifier: Build_Binaries_TAG
+                      spec:
+                        connectorRef: Plugins_Docker_Hub_Connector
+                        image: golang:1.25.11
+                        shell: Sh
+                        command: go build -v -buildvcs=false -ldflags "-X main.version=<+codebase.tag> -X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
+                      when:
+                        stageStatus: Success
+                        condition: <+codebase.build.type> == "tag"
+                  - step:
+                      type: Plugin
+                      name: BuildAndPushDockerPlugin on TAG
+                      identifier: BuildAndPushDockerPlugin_on_TAG
+                      spec:
+                        connectorRef: Plugins_Docker_Hub_Connector
+                        image: plugins/docker:21.3.0
+                        settings:
+                          username: drone
+                          password: <+secrets.getValue("Plugins_Docker_Hub_Pat")>
+                          repo: plugins/artifactory
+                          dockerfile: docker/Dockerfile.windows.amd64.ltsc2025
+                          auto_tag: "true"
+                          auto_tag_suffix: windows-ltsc2025-amd64
+                      when:
+                        stageStatus: Success
+                        condition: <+codebase.build.type> == "tag"
     - stage:
         name: Manifest
         identifier: Manifest
