@@ -38,24 +38,14 @@ RUN certutil -generateSSTFromWU C:\certificates\ca-certificates.sst; `
     Invoke-WebRequest -Uri "https://services.gradle.org/distributions/gradle-8.13-bin.zip" -OutFile "C:\gradle.zip"; `
     Expand-Archive -Path "C:\gradle.zip" -DestinationPath "C:\gradle"; `
     `
-    # Patch vulnerable jars bundled in Gradle
-    Remove-Item C:\gradle\gradle-8.13\lib\jackson-databind-*.jar -Force; `
-    Remove-Item C:\gradle\gradle-8.13\lib\jackson-core-*.jar -Force; `
-    Remove-Item C:\gradle\gradle-8.13\lib\jackson-annotations-*.jar -Force; `
-    Remove-Item C:\gradle\gradle-8.13\lib\bcprov-jdk18on-*.jar -Force; `
-    Remove-Item C:\gradle\gradle-8.13\lib\bcpg-jdk18on-*.jar -Force; `
-    Remove-Item C:\gradle\gradle-8.13\lib\commons-lang3-*.jar -Force; `
-    Invoke-WebRequest -Uri "https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.21.5/jackson-databind-2.21.5.jar" -OutFile "C:\gradle\gradle-8.13\lib\jackson-databind-2.21.5.jar"; `
-    Invoke-WebRequest -Uri "https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-core/2.21.5/jackson-core-2.21.5.jar" -OutFile "C:\gradle\gradle-8.13\lib\jackson-core-2.21.5.jar"; `
-    Invoke-WebRequest -Uri "https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-annotations/2.21/jackson-annotations-2.21.jar" -OutFile "C:\gradle\gradle-8.13\lib\jackson-annotations-2.21.jar"; `
-    Invoke-WebRequest -Uri "https://repo1.maven.org/maven2/org/bouncycastle/bcprov-jdk18on/1.85/bcprov-jdk18on-1.85.jar" -OutFile "C:\gradle\gradle-8.13\lib\bcprov-jdk18on-1.85.jar"; `
-    Invoke-WebRequest -Uri "https://repo1.maven.org/maven2/org/bouncycastle/bcpg-jdk18on/1.85/bcpg-jdk18on-1.85.jar" -OutFile "C:\gradle\gradle-8.13\lib\bcpg-jdk18on-1.85.jar"; `
-    Invoke-WebRequest -Uri "https://repo1.maven.org/maven2/org/apache/commons/commons-lang3/3.18.0/commons-lang3-3.18.0.jar" -OutFile "C:\gradle\gradle-8.13\lib\commons-lang3-3.18.0.jar"
+    # Patch vulnerable jars bundled in Gradle (overwrite in place, keep original filenames for classpath compatibility)
+    Invoke-WebRequest -Uri "https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.21.5/jackson-databind-2.21.5.jar" -OutFile "C:\gradle\gradle-8.13\lib\jackson-databind-2.16.1.jar"; `
+    Invoke-WebRequest -Uri "https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-core/2.21.5/jackson-core-2.21.5.jar" -OutFile "C:\gradle\gradle-8.13\lib\jackson-core-2.16.1.jar"; `
+    Invoke-WebRequest -Uri "https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-annotations/2.21/jackson-annotations-2.21.jar" -OutFile "C:\gradle\gradle-8.13\lib\jackson-annotations-2.16.1.jar"; `
+    Invoke-WebRequest -Uri "https://repo1.maven.org/maven2/org/bouncycastle/bcprov-jdk18on/1.85/bcprov-jdk18on-1.85.jar" -OutFile "C:\gradle\gradle-8.13\lib\plugins\bcprov-jdk18on-1.78.1.jar"; `
+    Invoke-WebRequest -Uri "https://repo1.maven.org/maven2/org/bouncycastle/bcpg-jdk18on/1.85/bcpg-jdk18on-1.85.jar" -OutFile "C:\gradle\gradle-8.13\lib\plugins\bcpg-jdk18on-1.78.1.jar"; `
+    Invoke-WebRequest -Uri "https://repo1.maven.org/maven2/org/apache/commons/commons-lang3/3.18.0/commons-lang3-3.18.0.jar" -OutFile "C:\gradle\gradle-8.13\lib\commons-lang3-3.14.0.jar"
 
-# Patch vulnerable jars bundled in Maven
-RUN Remove-Item C:\maven\apache-maven-3.9.11\lib\plexus-utils-*.jar -Force -ErrorAction SilentlyContinue; `
-    Remove-Item C:\maven\apache-maven-3.9.11\lib\commons-lang-2*.jar -Force -ErrorAction SilentlyContinue; `
-    Invoke-WebRequest -Uri "https://repo1.maven.org/maven2/org/codehaus/plexus/plexus-utils/4.0.3/plexus-utils-4.0.3.jar" -OutFile "C:\maven\apache-maven-3.9.11\lib\plexus-utils-4.0.3.jar"
 
 # Final image using PowerShell Nanoserver - much smaller base image with PowerShell support
 FROM mcr.microsoft.com/powershell:7.3-nanoserver-1809

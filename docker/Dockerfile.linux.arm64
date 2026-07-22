@@ -32,24 +32,14 @@ RUN curl -fsSL https://services.gradle.org/distributions/gradle-${GRADLE_VERSION
     && rm /tmp/gradle.zip \
     && ln -s /opt/gradle/gradle-${GRADLE_VERSION}/bin/gradle /usr/local/bin/gradle
 
-# Patch vulnerable jars bundled in Gradle
-RUN find /opt/gradle -name "jackson-databind-*.jar" -delete \
-    && find /opt/gradle -name "jackson-core-*.jar" -delete \
-    && find /opt/gradle -name "jackson-annotations-*.jar" -delete \
-    && find /opt/gradle -name "bcprov-jdk18on-*.jar" -delete \
-    && find /opt/gradle -name "bcpg-jdk18on-*.jar" -delete \
-    && find /opt/gradle -name "commons-lang3-*.jar" -delete \
-    && curl -fsSL https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.21.5/jackson-databind-2.21.5.jar -o /opt/gradle/gradle-${GRADLE_VERSION}/lib/jackson-databind-2.21.5.jar \
-    && curl -fsSL https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-core/2.21.5/jackson-core-2.21.5.jar -o /opt/gradle/gradle-${GRADLE_VERSION}/lib/jackson-core-2.21.5.jar \
-    && curl -fsSL https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-annotations/2.21/jackson-annotations-2.21.jar -o /opt/gradle/gradle-${GRADLE_VERSION}/lib/jackson-annotations-2.21.jar \
-    && curl -fsSL https://repo1.maven.org/maven2/org/bouncycastle/bcprov-jdk18on/1.85/bcprov-jdk18on-1.85.jar -o /opt/gradle/gradle-${GRADLE_VERSION}/lib/bcprov-jdk18on-1.85.jar \
-    && curl -fsSL https://repo1.maven.org/maven2/org/bouncycastle/bcpg-jdk18on/1.85/bcpg-jdk18on-1.85.jar -o /opt/gradle/gradle-${GRADLE_VERSION}/lib/bcpg-jdk18on-1.85.jar \
-    && curl -fsSL https://repo1.maven.org/maven2/org/apache/commons/commons-lang3/3.18.0/commons-lang3-3.18.0.jar -o /opt/gradle/gradle-${GRADLE_VERSION}/lib/commons-lang3-3.18.0.jar
+# Patch vulnerable jars bundled in Gradle (overwrite in place, keep original filenames for classpath compatibility)
+RUN curl -fsSL https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.21.5/jackson-databind-2.21.5.jar -o /opt/gradle/gradle-${GRADLE_VERSION}/lib/jackson-databind-2.16.1.jar \
+    && curl -fsSL https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-core/2.21.5/jackson-core-2.21.5.jar -o /opt/gradle/gradle-${GRADLE_VERSION}/lib/jackson-core-2.16.1.jar \
+    && curl -fsSL https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-annotations/2.21/jackson-annotations-2.21.jar -o /opt/gradle/gradle-${GRADLE_VERSION}/lib/jackson-annotations-2.16.1.jar \
+    && curl -fsSL https://repo1.maven.org/maven2/org/bouncycastle/bcprov-jdk18on/1.85/bcprov-jdk18on-1.85.jar -o /opt/gradle/gradle-${GRADLE_VERSION}/lib/plugins/bcprov-jdk18on-1.78.1.jar \
+    && curl -fsSL https://repo1.maven.org/maven2/org/bouncycastle/bcpg-jdk18on/1.85/bcpg-jdk18on-1.85.jar -o /opt/gradle/gradle-${GRADLE_VERSION}/lib/plugins/bcpg-jdk18on-1.78.1.jar \
+    && curl -fsSL https://repo1.maven.org/maven2/org/apache/commons/commons-lang3/3.18.0/commons-lang3-3.18.0.jar -o /opt/gradle/gradle-${GRADLE_VERSION}/lib/commons-lang3-3.14.0.jar
 
-# Patch vulnerable jars bundled in Maven
-RUN find / -name "plexus-utils-3*.jar" -delete 2>/dev/null; \
-    find / -name "commons-lang-2*.jar" -not -path "*/commons-lang3*" -delete 2>/dev/null; \
-    curl -fsSL https://repo1.maven.org/maven2/org/codehaus/plexus/plexus-utils/4.0.3/plexus-utils-4.0.3.jar -o /usr/share/java/plexus-utils-4.0.3.jar || true
 
 # Install JFrog CLI (CVE-2026-39821: bumped to 2.115.0 for golang.org/x/net/idna improper authentication fix)
 RUN curl -fL https://getcli.jfrog.io/v2-jf | sh /dev/stdin 2.115.0
