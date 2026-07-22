@@ -5,7 +5,7 @@ FROM mcr.microsoft.com/windows/servercore:ltsc2022 AS builder
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
 # Set versions
-ENV JDK_VERSION="17.0.13+11"
+ENV JDK_VERSION="17.0.19+10"
 ENV MAVEN_VERSION="3.9.11"
 ENV GRADLE_VERSION="8.13"
 
@@ -23,11 +23,11 @@ COPY docker/cert.windows.pem docker/cacert.pem C:\users\ContainerAdministrator\.
 # Generate CA certificates and download/install tools in a single layer
 RUN certutil -generateSSTFromWU C:\certificates\ca-certificates.sst; `
     `
-    # Download JFrog CLI (CVE-2026-39821: bumped to 2.111.0 for golang.org/x/net/idna improper authentication fix)
-    Invoke-WebRequest -Uri https://releases.jfrog.io/artifactory/jfrog-cli/v2/2.111.0/jfrog-cli-windows-amd64/jfrog.exe -OutFile C:\bin\jfrog.exe; `
+    # Download JFrog CLI (CVE-2026-39821: bumped to 2.115.0 for golang.org/x/net/idna improper authentication fix)
+    Invoke-WebRequest -Uri https://releases.jfrog.io/artifactory/jfrog-cli/v2/2.115.0/jfrog-cli-windows-amd64/jfrog.exe -OutFile C:\bin\jfrog.exe; `
     `
     # Download and install JDK
-    Invoke-WebRequest -Uri "https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.13%2B11/OpenJDK17U-jdk_x64_windows_hotspot_17.0.13_11.zip" -OutFile "C:\jdk.zip"; `
+    Invoke-WebRequest -Uri "https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.19%2B10/OpenJDK17U-jdk_x64_windows_hotspot_17.0.19_10.zip" -OutFile "C:\jdk.zip"; `
     Expand-Archive -Path "C:\jdk.zip" -DestinationPath "C:\jdk"; `
     `
     # Download and install Maven
@@ -36,7 +36,26 @@ RUN certutil -generateSSTFromWU C:\certificates\ca-certificates.sst; `
     `
     # Download and install Gradle
     Invoke-WebRequest -Uri "https://services.gradle.org/distributions/gradle-8.13-bin.zip" -OutFile "C:\gradle.zip"; `
-    Expand-Archive -Path "C:\gradle.zip" -DestinationPath "C:\gradle"
+    Expand-Archive -Path "C:\gradle.zip" -DestinationPath "C:\gradle"; `
+    `
+    # Patch vulnerable jars bundled in Gradle
+    Remove-Item C:\gradle\gradle-8.13\lib\jackson-databind-*.jar -Force; `
+    Remove-Item C:\gradle\gradle-8.13\lib\jackson-core-*.jar -Force; `
+    Remove-Item C:\gradle\gradle-8.13\lib\jackson-annotations-*.jar -Force; `
+    Remove-Item C:\gradle\gradle-8.13\lib\bcprov-jdk18on-*.jar -Force; `
+    Remove-Item C:\gradle\gradle-8.13\lib\bcpg-jdk18on-*.jar -Force; `
+    Remove-Item C:\gradle\gradle-8.13\lib\commons-lang3-*.jar -Force; `
+    Invoke-WebRequest -Uri "https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.21.5/jackson-databind-2.21.5.jar" -OutFile "C:\gradle\gradle-8.13\lib\jackson-databind-2.21.5.jar"; `
+    Invoke-WebRequest -Uri "https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-core/2.21.5/jackson-core-2.21.5.jar" -OutFile "C:\gradle\gradle-8.13\lib\jackson-core-2.21.5.jar"; `
+    Invoke-WebRequest -Uri "https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-annotations/2.21/jackson-annotations-2.21.jar" -OutFile "C:\gradle\gradle-8.13\lib\jackson-annotations-2.21.jar"; `
+    Invoke-WebRequest -Uri "https://repo1.maven.org/maven2/org/bouncycastle/bcprov-jdk18on/1.85/bcprov-jdk18on-1.85.jar" -OutFile "C:\gradle\gradle-8.13\lib\bcprov-jdk18on-1.85.jar"; `
+    Invoke-WebRequest -Uri "https://repo1.maven.org/maven2/org/bouncycastle/bcpg-jdk18on/1.85/bcpg-jdk18on-1.85.jar" -OutFile "C:\gradle\gradle-8.13\lib\bcpg-jdk18on-1.85.jar"; `
+    Invoke-WebRequest -Uri "https://repo1.maven.org/maven2/org/apache/commons/commons-lang3/3.18.0/commons-lang3-3.18.0.jar" -OutFile "C:\gradle\gradle-8.13\lib\commons-lang3-3.18.0.jar"
+
+# Patch vulnerable jars bundled in Maven
+RUN Remove-Item C:\maven\apache-maven-3.9.11\lib\plexus-utils-*.jar -Force -ErrorAction SilentlyContinue; `
+    Remove-Item C:\maven\apache-maven-3.9.11\lib\commons-lang-2*.jar -Force -ErrorAction SilentlyContinue; `
+    Invoke-WebRequest -Uri "https://repo1.maven.org/maven2/org/codehaus/plexus/plexus-utils/4.0.3/plexus-utils-4.0.3.jar" -OutFile "C:\maven\apache-maven-3.9.11\lib\plexus-utils-4.0.3.jar"
 
 # Final image using PowerShell Nanoserver - much smaller base image with PowerShell support
 FROM mcr.microsoft.com/powershell:7.3-nanoserver-ltsc2022
@@ -55,8 +74,8 @@ COPY --from=builder C:\gradle C:\gradle
 
 # Set environment variables
 ENV GODEBUG=netdns=go
-ENV PATH="C:\bin;C:\jdk\jdk-17.0.13+11\bin;C:\maven\apache-maven-3.9.11\bin;C:\gradle\gradle-8.13\bin;C:\Windows\System32;C:\Windows;C:\Program Files\PowerShell"
-ENV JAVA_HOME="C:\jdk\jdk-17.0.13+11"
+ENV PATH="C:\bin;C:\jdk\jdk-17.0.19+10\bin;C:\maven\apache-maven-3.9.11\bin;C:\gradle\gradle-8.13\bin;C:\Windows\System32;C:\Windows;C:\Program Files\PowerShell"
+ENV JAVA_HOME="C:\jdk\jdk-17.0.19+10"
 ENV MAVEN_HOME="C:\maven\apache-maven-3.9.11"
 ENV GRADLE_HOME="C:\gradle\gradle-8.13"
 # Add environment variable to prevent interactive prompts
