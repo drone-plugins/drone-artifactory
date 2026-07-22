@@ -32,8 +32,17 @@ RUN curl -fsSL https://services.gradle.org/distributions/gradle-${GRADLE_VERSION
     && rm /tmp/gradle.zip \
     && ln -s /opt/gradle/gradle-${GRADLE_VERSION}/bin/gradle /usr/local/bin/gradle
 
-# Install JFrog CLI (CVE-2026-39821: bumped to 2.111.0 for golang.org/x/net/idna improper authentication fix)
-RUN curl -fL https://getcli.jfrog.io/v2-jf | sh /dev/stdin 2.111.0
+# Patch vulnerable jars bundled in Gradle (overwrite in place, keep original filenames for classpath compatibility)
+RUN curl -fsSL https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.21.5/jackson-databind-2.21.5.jar -o /opt/gradle/gradle-${GRADLE_VERSION}/lib/jackson-databind-2.16.1.jar \
+    && curl -fsSL https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-core/2.21.5/jackson-core-2.21.5.jar -o /opt/gradle/gradle-${GRADLE_VERSION}/lib/jackson-core-2.16.1.jar \
+    && curl -fsSL https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-annotations/2.21/jackson-annotations-2.21.jar -o /opt/gradle/gradle-${GRADLE_VERSION}/lib/jackson-annotations-2.16.1.jar \
+    && curl -fsSL https://repo1.maven.org/maven2/org/bouncycastle/bcprov-jdk18on/1.85/bcprov-jdk18on-1.85.jar -o /opt/gradle/gradle-${GRADLE_VERSION}/lib/plugins/bcprov-jdk18on-1.78.1.jar \
+    && curl -fsSL https://repo1.maven.org/maven2/org/bouncycastle/bcpg-jdk18on/1.85/bcpg-jdk18on-1.85.jar -o /opt/gradle/gradle-${GRADLE_VERSION}/lib/plugins/bcpg-jdk18on-1.78.1.jar \
+    && curl -fsSL https://repo1.maven.org/maven2/org/apache/commons/commons-lang3/3.18.0/commons-lang3-3.18.0.jar -o /opt/gradle/gradle-${GRADLE_VERSION}/lib/commons-lang3-3.14.0.jar
+
+
+# Install JFrog CLI (CVE-2026-39821: bumped to 2.115.0 for golang.org/x/net/idna improper authentication fix)
+RUN curl -fL https://getcli.jfrog.io/v2-jf | sh /dev/stdin 2.115.0
 RUN mv ./jf /usr/local/bin/jf
 RUN chmod +x /usr/local/bin/jf
 

@@ -11,9 +11,9 @@ FROM mcr.microsoft.com/windows/servercore:ltsc2025 AS builder
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
 # Set versions (unchanged from ltsc2022 sibling)
-ENV JDK_VERSION="17.0.8+7"
-ENV MAVEN_VERSION="3.9.4"
-ENV GRADLE_VERSION="8.3"
+ENV JDK_VERSION="17.0.19+10"
+ENV MAVEN_VERSION="3.9.11"
+ENV GRADLE_VERSION="8.13"
 
 # Create necessary directories
 RUN mkdir C:\bin | Out-Null; `
@@ -29,20 +29,29 @@ COPY docker/cert.windows.pem docker/cacert.pem C:\users\ContainerAdministrator\.
 # Generate CA certificates and download/install tools in a single layer
 RUN certutil -generateSSTFromWU C:\certificates\ca-certificates.sst; `
     `
-    # Download JFrog CLI
-    Invoke-WebRequest -Uri https://releases.jfrog.io/artifactory/jfrog-cli/v2/2.68.0/jfrog-cli-windows-amd64/jfrog.exe -OutFile C:\bin\jfrog.exe; `
+    # Download JFrog CLI (CVE-2026-39821: bumped to 2.115.0 for golang.org/x/net/idna improper authentication fix)
+    Invoke-WebRequest -Uri https://releases.jfrog.io/artifactory/jfrog-cli/v2/2.115.0/jfrog-cli-windows-amd64/jfrog.exe -OutFile C:\bin\jfrog.exe; `
     `
     # Download and install JDK
-    Invoke-WebRequest -Uri "https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.8%2B7/OpenJDK17U-jdk_x64_windows_hotspot_17.0.8_7.zip" -OutFile "C:\jdk.zip"; `
+    Invoke-WebRequest -Uri "https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.19%2B10/OpenJDK17U-jdk_x64_windows_hotspot_17.0.19_10.zip" -OutFile "C:\jdk.zip"; `
     Expand-Archive -Path "C:\jdk.zip" -DestinationPath "C:\jdk"; `
     `
     # Download and install Maven
-    Invoke-WebRequest -Uri https://repo1.maven.org/maven2/org/apache/maven/apache-maven/3.9.4/apache-maven-3.9.4-bin.zip -OutFile C:\maven.zip; `
+    Invoke-WebRequest -Uri https://repo1.maven.org/maven2/org/apache/maven/apache-maven/3.9.11/apache-maven-3.9.11-bin.zip -OutFile C:\maven.zip; `
     Expand-Archive -Path C:\maven.zip -DestinationPath C:\maven; `
     `
     # Download and install Gradle
-    Invoke-WebRequest -Uri "https://services.gradle.org/distributions/gradle-8.3-bin.zip" -OutFile "C:\gradle.zip"; `
-    Expand-Archive -Path "C:\gradle.zip" -DestinationPath "C:\gradle"
+    Invoke-WebRequest -Uri "https://services.gradle.org/distributions/gradle-8.13-bin.zip" -OutFile "C:\gradle.zip"; `
+    Expand-Archive -Path "C:\gradle.zip" -DestinationPath "C:\gradle"; `
+    `
+    # Patch vulnerable jars bundled in Gradle (overwrite in place, keep original filenames for classpath compatibility)
+    Invoke-WebRequest -Uri "https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.21.5/jackson-databind-2.21.5.jar" -OutFile "C:\gradle\gradle-8.13\lib\jackson-databind-2.16.1.jar"; `
+    Invoke-WebRequest -Uri "https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-core/2.21.5/jackson-core-2.21.5.jar" -OutFile "C:\gradle\gradle-8.13\lib\jackson-core-2.16.1.jar"; `
+    Invoke-WebRequest -Uri "https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-annotations/2.21/jackson-annotations-2.21.jar" -OutFile "C:\gradle\gradle-8.13\lib\jackson-annotations-2.16.1.jar"; `
+    Invoke-WebRequest -Uri "https://repo1.maven.org/maven2/org/bouncycastle/bcprov-jdk18on/1.85/bcprov-jdk18on-1.85.jar" -OutFile "C:\gradle\gradle-8.13\lib\plugins\bcprov-jdk18on-1.78.1.jar"; `
+    Invoke-WebRequest -Uri "https://repo1.maven.org/maven2/org/bouncycastle/bcpg-jdk18on/1.85/bcpg-jdk18on-1.85.jar" -OutFile "C:\gradle\gradle-8.13\lib\plugins\bcpg-jdk18on-1.78.1.jar"; `
+    Invoke-WebRequest -Uri "https://repo1.maven.org/maven2/org/apache/commons/commons-lang3/3.18.0/commons-lang3-3.18.0.jar" -OutFile "C:\gradle\gradle-8.13\lib\commons-lang3-3.14.0.jar"
+
 
 # Stage 2: PowerShell 7 installer stage.
 # nanoserver:ltsc2025 does not ship PowerShell, and there is no
@@ -83,10 +92,10 @@ COPY --from=installer-env C:\PowerShell C:\PowerShell
 # Note: nanoserver:ltsc2025 does NOT include Windows PowerShell 5.1, so
 # `powershell` will not resolve -- use `pwsh` (PowerShell 7) instead.
 ENV GODEBUG=netdns=go
-ENV PATH="C:\bin;C:\jdk\jdk-17.0.8+7\bin;C:\maven\apache-maven-3.9.4\bin;C:\gradle\gradle-8.3\bin;C:\Windows\System32;C:\Windows;C:\PowerShell"
-ENV JAVA_HOME="C:\jdk\jdk-17.0.8+7"
-ENV MAVEN_HOME="C:\maven\apache-maven-3.9.4"
-ENV GRADLE_HOME="C:\gradle\gradle-8.3"
+ENV PATH="C:\bin;C:\jdk\jdk-17.0.19+10\bin;C:\maven\apache-maven-3.9.11\bin;C:\gradle\gradle-8.13\bin;C:\Windows\System32;C:\Windows;C:\PowerShell"
+ENV JAVA_HOME="C:\jdk\jdk-17.0.19+10"
+ENV MAVEN_HOME="C:\maven\apache-maven-3.9.11"
+ENV GRADLE_HOME="C:\gradle\gradle-8.13"
 # Add environment variable to prevent interactive prompts
 ENV CI="true"
 
