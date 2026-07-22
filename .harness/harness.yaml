@@ -33,7 +33,7 @@ pipeline:
                   identifier: Run_1
                   spec:
                     connectorRef: Plugins_Docker_Hub_Connector
-                    image: golang:1.25.11
+                    image: golang:1.25.12
                     shell: Sh
                     command: |-
                       go test -cover ./...
@@ -63,7 +63,7 @@ pipeline:
                       type: Run
                       spec:
                         connectorRef: Plugins_Docker_Hub_Connector
-                        image: golang:1.25.11
+                        image: golang:1.25.12
                         shell: Sh
                         command: go build -v -ldflags "-X main.build=<+pipeline.sequenceId>" -a -o release/linux/amd64/plugin
                       when:
@@ -76,7 +76,7 @@ pipeline:
                       type: Run
                       spec:
                         connectorRef: Plugins_Docker_Hub_Connector
-                        image: golang:1.25.11
+                        image: golang:1.25.12
                         shell: Sh
                         command: go build -v -ldflags "-X main.version=<+codebase.tag> -X main.build=<+pipeline.sequenceId>" -a -o release/linux/amd64/plugin
                       when:
@@ -138,7 +138,7 @@ pipeline:
                       type: Run
                       spec:
                         connectorRef: Plugins_Docker_Hub_Connector
-                        image: golang:1.25.11
+                        image: golang:1.25.12
                         shell: Sh
                         command: go build -v -ldflags "-X main.build=<+pipeline.sequenceId>" -a -o release/linux/arm64/plugin
                       when:
@@ -151,7 +151,7 @@ pipeline:
                       type: Run
                       spec:
                         connectorRef: Plugins_Docker_Hub_Connector
-                        image: golang:1.25.11
+                        image: golang:1.25.12
                         shell: Sh
                         command: go build -v -ldflags "-X main.version=<+codebase.tag> -X main.build=<+pipeline.sequenceId>" -a -o release/linux/arm64/plugin
                       when:
@@ -291,7 +291,7 @@ pipeline:
                       type: Run
                       spec:
                         connectorRef: Plugins_Docker_Hub_Connector
-                        image: golang:1.25.11
+                        image: golang:1.25.12
                         shell: Sh
                         command: go build -v -buildvcs=false -ldflags "-X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
                       when:
@@ -304,7 +304,7 @@ pipeline:
                       type: Run
                       spec:
                         connectorRef: Plugins_Docker_Hub_Connector
-                        image: golang:1.25.11
+                        image: golang:1.25.12
                         shell: Sh
                         command: go build -v -buildvcs=false -ldflags "-X main.version=<+codebase.tag> -X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
                       when:
@@ -377,7 +377,7 @@ pipeline:
                       type: Run
                       spec:
                         connectorRef: Plugins_Docker_Hub_Connector
-                        image: golang:1.25.11
+                        image: golang:1.25.12
                         shell: Sh
                         command: go build -v -ldflags "-X main.build=<+pipeline.sequenceId>" -a -o release/linux/amd64/plugin
                       when:
@@ -390,7 +390,7 @@ pipeline:
                       type: Run
                       spec:
                         connectorRef: Plugins_Docker_Hub_Connector
-                        image: golang:1.25.11
+                        image: golang:1.25.12
                         shell: Sh
                         command: go build -v -ldflags "-X main.version=<+codebase.tag> -X main.build=<+pipeline.sequenceId>" -a -o release/linux/amd64/plugin
                       when:
@@ -470,7 +470,7 @@ pipeline:
                       type: Run
                       spec:
                         connectorRef: Plugins_Docker_Hub_Connector
-                        image: golang:1.25.11
+                        image: golang:1.25.12
                         shell: Sh
                         command: go build -v -ldflags "-X main.build=<+pipeline.sequenceId>" -a -o release/linux/arm64/plugin
                       when:
@@ -483,7 +483,7 @@ pipeline:
                       type: Run
                       spec:
                         connectorRef: Plugins_Docker_Hub_Connector
-                        image: golang:1.25.11
+                        image: golang:1.25.12
                         shell: Sh
                         command: go build -v -ldflags "-X main.version=<+codebase.tag> -X main.build=<+pipeline.sequenceId>" -a -o release/linux/arm64/plugin
                       when:
@@ -652,7 +652,7 @@ pipeline:
                       type: Run
                       spec:
                         connectorRef: Plugins_Docker_Hub_Connector
-                        image: golang:1.25.11
+                        image: golang:1.25.12
                         shell: Sh
                         command: go build -v -buildvcs=false -ldflags "-X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
                       when:
@@ -665,7 +665,7 @@ pipeline:
                       type: Run
                       spec:
                         connectorRef: Plugins_Docker_Hub_Connector
-                        image: golang:1.25.11
+                        image: golang:1.25.12
                         shell: Sh
                         command: go build -v -buildvcs=false -ldflags "-X main.version=<+codebase.tag> -X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
                       when:
@@ -731,7 +731,7 @@ pipeline:
                       identifier: Build_Binaries_Branch
                       spec:
                         connectorRef: Plugins_Docker_Hub_Connector
-                        image: golang:1.25.11
+                        image: golang:1.25.12
                         shell: Sh
                         command: go build -v -buildvcs=false -ldflags "-X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
                       when:
@@ -743,7 +743,7 @@ pipeline:
                       identifier: Build_Binaries_TAG
                       spec:
                         connectorRef: Plugins_Docker_Hub_Connector
-                        image: golang:1.25.11
+                        image: golang:1.25.12
                         shell: Sh
                         command: go build -v -buildvcs=false -ldflags "-X main.version=<+codebase.tag> -X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
                       when:
@@ -835,7 +835,7 @@ pipeline:
                   identifier: Build_Binaries
                   spec:
                     connectorRef: Plugins_Docker_Hub_Connector
-                    image: golang:1.25.11
+                    image: golang:1.25.12
                     shell: Sh
                     command: |-
                       GOOS=linux   GOARCH=amd64 go build -v -ldflags "-X main.version=${DRONE_TAG##v} -X main.build=${DRONE_BUILD_NUMBER}" -a -o release/plugin-linux-amd64
