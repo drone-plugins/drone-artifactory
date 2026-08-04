@@ -766,6 +766,107 @@ pipeline:
                       when:
                         stageStatus: Success
                         condition: <+codebase.build.type> == "tag"
+                  - step:
+                      type: BuildAndPushDockerRegistry
+                      name: Build and Push on Branch
+                      identifier: BuildAndPushDockerRegistry_ltsc2025
+                      spec:
+                        connectorRef: Plugins_Docker_Hub_Connector
+                        repo: plugins/artifactory
+                        tags:
+                          - windows-ltsc2025-amd64
+                        caching: false
+                        dockerfile: docker/Dockerfile.windows.amd64.ltsc2025
+                      when:
+                        stageStatus: Success
+                        condition: <+codebase.build.type> == "branch"
+        - stage:
+            name: win-ltsc2025-amd64-rf
+            identifier: winltsc2025amd64rf
+            description: ""
+            type: CI
+            spec:
+              cloneCodebase: true
+              caching:
+                enabled: false
+                paths: []
+              buildIntelligence:
+                enabled: false
+              infrastructure:
+                type: VM
+                spec:
+                  type: Pool
+                  spec:
+                    poolName: windows-2025
+                    os: Windows
+              execution:
+                steps:
+                  - step:
+                      type: GitClone
+                      name: Clone RF Dockerfiles
+                      identifier: Clone_RF_Dockerfiles
+                      spec:
+                        connectorRef: RapidFortPlugins
+                        cloneDirectory: rf-plugins
+                        build:
+                          type: branch
+                          spec:
+                            branch: main
+                  - step:
+                      name: Build binaries - branch
+                      identifier: Build_Binaries_Branch
+                      type: Run
+                      spec:
+                        connectorRef: Plugins_Docker_Hub_Connector
+                        image: golang:1.25.12
+                        shell: Sh
+                        command: go build -v -buildvcs=false -ldflags "-X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
+                      when:
+                        stageStatus: Success
+                        condition: <+codebase.build.type> != "tag"
+                  - step:
+                      name: Build binaries - tag
+                      identifier: Build_Binaries_TAG
+                      type: Run
+                      spec:
+                        connectorRef: Plugins_Docker_Hub_Connector
+                        image: golang:1.25.12
+                        shell: Sh
+                        command: go build -v -buildvcs=false -ldflags "-X main.version=<+codebase.tag> -X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
+                      when:
+                        stageStatus: Success
+                        condition: <+codebase.build.type> == "tag"
+                  - step:
+                      type: Plugin
+                      name: RF Build and Push on Tag
+                      identifier: RF_Build_and_Push_on_Tag
+                      spec:
+                        connectorRef: Plugins_Docker_Hub_Connector
+                        image: plugins/docker:21.3.0
+                        settings:
+                          username: <+secrets.getValue("harnesssecureusername")>
+                          password: <+secrets.getValue("dockerHarnessSecurePwd")>
+                          repo: harnesssecure/artifactory
+                          dockerfile: rf-plugins/drone-artifactory/Dockerfile.windows.amd64.ltsc2025
+                          auto_tag: "true"
+                          auto_tag_suffix: windows-ltsc2025-amd64
+                      when:
+                        stageStatus: Success
+                        condition: <+codebase.build.type> == "tag"
+                  - step:
+                      type: BuildAndPushDockerRegistry
+                      name: RF Build and Push on Branch
+                      identifier: rf_build_push_branch
+                      spec:
+                        connectorRef: harnesssecure
+                        repo: harnesssecure/artifactory
+                        tags:
+                          - windows-ltsc2025-amd64
+                        caching: false
+                        dockerfile: rf-plugins/drone-artifactory/Dockerfile.windows.amd64.ltsc2025
+                      when:
+                        stageStatus: Success
+                        condition: <+codebase.build.type> == "branch"
     - stage:
         name: Manifest
         identifier: Manifest
