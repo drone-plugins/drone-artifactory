@@ -5,8 +5,10 @@
 package plugin
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"net/url"
 	"os"
 	"os/exec"
@@ -120,7 +122,7 @@ func Exec(ctx context.Context, args Args) error {
 		return fmt.Errorf("JFrog Artifactory URL must be set, or anonymous access is not permitted")
 	}
 
-	cmdArgs := []string{getJfrogBin(), "rt", "u", fmt.Sprintf("--url %s", args.URL)}
+	cmdArgs := []string{getJfrogBin(), "rt", "u", fmt.Sprintf("--url %s", args.URL), "--detailed-summary=true"}
 	if args.Retries != 0 {
 		cmdArgs = append(cmdArgs, fmt.Sprintf("--retries=%d", args.Retries))
 	}
@@ -209,13 +211,24 @@ func Exec(ctx context.Context, args Args) error {
 	cmd.Env = os.Environ()
 	cmd.Env = append(cmd.Env, "JFROG_CLI_OFFER_CONFIG=false")
 
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	var summaryBuf bytes.Buffer
+	cmd.Stdout = io.MultiWriter(os.Stdout, &summaryBuf)
+	cmd.Stderr = io.MultiWriter(os.Stderr, &summaryBuf)
 	trace(cmd)
 
 	err := cmd.Run()
 	if err != nil {
 		return err
+	}
+
+	// Prefer the authoritative list from JFrog CLI's --detailed-summary output;
+	// fall back to local glob resolution if parsing fails.
+	entries := parseJFrogDetailedSummary(summaryBuf.Bytes(), args.URL)
+	if len(entries) == 0 {
+		entries = collectArtifactEntries(args)
+	}
+	if len(entries) > 0 {
+		writeArtifactFile(entries)
 	}
 
 	// Call publishBuildInfo if PLUGIN_PUBLISH_BUILD_INFO is set to true
