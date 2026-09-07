@@ -153,7 +153,7 @@ pipeline:
                         connectorRef: Plugins_Docker_Hub_Connector
                         image: golang:1.25.12
                         shell: Sh
-                        command: go build -v -ldflags "-X main.version=<+codebase.tag> -X main.build=<+pipeline.sequenceId>" -a -o release/linux/arm64/plugin
+                        command: go build -v -buildvcs=false -ldflags "-X main.version=<+codebase.tag> -X main.build=<+pipeline.sequenceId>" -a -o release/linux/arm64/plugin
                       when:
                         stageStatus: Success
                         condition: <+codebase.build.type> == "tag"
@@ -485,7 +485,7 @@ pipeline:
                         connectorRef: Plugins_Docker_Hub_Connector
                         image: golang:1.25.12
                         shell: Sh
-                        command: go build -v -ldflags "-X main.version=<+codebase.tag> -X main.build=<+pipeline.sequenceId>" -a -o release/linux/arm64/plugin
+                        command: go build -v -buildvcs=false -ldflags "-X main.version=<+codebase.tag> -X main.build=<+pipeline.sequenceId>" -a -o release/linux/arm64/plugin
                       when:
                         stageStatus: Success
                         condition: <+codebase.build.type> == "tag"
