@@ -100,10 +100,31 @@ type Args struct {
 	ExcludeBuilds   string `envconfig:"PLUGIN_EXCLUDE_BUILDS"`
 	MaxBuilds       string `envconfig:"PLUGIN_MAX_BUILDS"`
 	MaxDays         string `envconfig:"PLUGIN_MAX_DAYS"`
+
+	// OIDC authentication
+	OidcToken        string `envconfig:"ARTIFACTORY_OIDC_TOKEN"`
+	OidcProviderName string `envconfig:"ARTIFACTORY_OIDC_PROVIDER_NAME"`
+	OidcProjectKey   string `envconfig:"ARTIFACTORY_OIDC_PROJECT_KEY"`
 }
 
 // Exec executes the plugin.
 func Exec(ctx context.Context, args Args) error {
+
+	if args.OidcToken != "" {
+		if args.URL == "" {
+			return fmt.Errorf("JFrog Artifactory URL is required for OIDC authentication")
+		}
+		if args.OidcProviderName == "" {
+			return fmt.Errorf("OIDC provider name is required for OIDC authentication")
+		}
+		logrus.Println("OIDC authentication detected, exchanging token for JFrog access token")
+		accessToken, err := exchangeOidcToken(args.URL, args.OidcToken, args.OidcProviderName, args.OidcProjectKey)
+		if err != nil {
+			return fmt.Errorf("OIDC token exchange failed: %w", err)
+		}
+		args.AccessToken = accessToken
+		os.Setenv("PLUGIN_ACCESS_TOKEN", accessToken)
+	}
 
 	logrus.Println("Checking RT commands")
 	if args.BuildTool != "" || args.Command != "" {
