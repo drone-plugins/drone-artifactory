@@ -1,6 +1,13 @@
 FROM alpine:3.24 as alpine
 RUN apk add -U --no-cache ca-certificates
 
+FROM golang:1.26.8-alpine AS builder
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o /bin/plugin .
+
 FROM alpine:3.24
 ENV GODEBUG netdns=go
 ENV CI=true
@@ -38,15 +45,15 @@ RUN curl -fsSL https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson
     && curl -fsSL https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-annotations/2.21/jackson-annotations-2.21.jar -o /opt/gradle/gradle-${GRADLE_VERSION}/lib/jackson-annotations-2.16.1.jar \
     && curl -fsSL https://repo1.maven.org/maven2/org/bouncycastle/bcprov-jdk18on/1.85/bcprov-jdk18on-1.85.jar -o /opt/gradle/gradle-${GRADLE_VERSION}/lib/plugins/bcprov-jdk18on-1.78.1.jar \
     && curl -fsSL https://repo1.maven.org/maven2/org/bouncycastle/bcpg-jdk18on/1.85/bcpg-jdk18on-1.85.jar -o /opt/gradle/gradle-${GRADLE_VERSION}/lib/plugins/bcpg-jdk18on-1.78.1.jar \
-    && curl -fsSL https://repo1.maven.org/maven2/org/apache/commons/commons-lang3/3.18.0/commons-lang3-3.18.0.jar -o /opt/gradle/gradle-${GRADLE_VERSION}/lib/commons-lang3-3.14.0.jar
+    && curl -fsSL https://repo1.maven.org/maven2/org/apache/commons/commons-lang3/3.18.0/commons-lang3-3.18.0.jar -o /opt/gradle/gradle-${GRADLE_VERSION}/lib/commons-lang3-3.14.0.jar \
+    && curl -fsSL https://repo1.maven.org/maven2/org/codehaus/plexus/plexus-utils/3.6.1/plexus-utils-3.6.1.jar -o /opt/gradle/gradle-${GRADLE_VERSION}/lib/plugins/plexus-utils-3.5.1.jar
 
-
-# Install JFrog CLI (CVE-2026-39821: bumped to 2.115.0 for golang.org/x/net/idna improper authentication fix)
-RUN curl -fL https://getcli.jfrog.io/v2-jf | sh /dev/stdin 2.115.0
+# Install JFrog CLI (bumped to 2.124.0: latest stable, addresses multiple bundled Go dep CVEs)
+RUN curl -fL https://getcli.jfrog.io/v2-jf | sh /dev/stdin 2.124.0
 RUN mv ./jf /usr/local/bin/jf
 RUN chmod +x /usr/local/bin/jf
 
-# Add your custom plugin
-ADD release/linux/amd64/plugin /bin/
+# Add plugin binary built from source with Go 1.26.8 (eliminates Go stdlib CVEs present in pre-built binary)
+COPY --from=builder /bin/plugin /bin/plugin
 
 ENTRYPOINT ["/bin/plugin"]
