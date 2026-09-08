@@ -1,6 +1,6 @@
 module github.com/drone/drone-artifactory
 
-go 1.25.12
+go 1.26.8
 
 require (
 	github.com/kelseyhightower/envconfig v1.4.0
