@@ -65,7 +65,7 @@ pipeline:
                         connectorRef: Plugins_Docker_Hub_Connector
                         image: golang:1.25.12
                         shell: Sh
-                        command: go build -v -ldflags "-X main.build=<+pipeline.sequenceId>" -a -o release/linux/amd64/plugin
+                        command: CGO_ENABLED=0 go build -v -ldflags "-X main.build=<+pipeline.sequenceId>" -a -o release/linux/amd64/plugin
                       when:
                         stageStatus: Success
                         condition: |
@@ -78,7 +78,7 @@ pipeline:
                         connectorRef: Plugins_Docker_Hub_Connector
                         image: golang:1.25.12
                         shell: Sh
-                        command: go build -v -ldflags "-X main.version=<+codebase.tag> -X main.build=<+pipeline.sequenceId>" -a -o release/linux/amd64/plugin
+                        command: CGO_ENABLED=0 go build -v -ldflags "-X main.version=<+codebase.tag> -X main.build=<+pipeline.sequenceId>" -a -o release/linux/amd64/plugin
                       when:
                         stageStatus: Success
                         condition: <+codebase.build.type> == "tag"
@@ -140,7 +140,7 @@ pipeline:
                         connectorRef: Plugins_Docker_Hub_Connector
                         image: golang:1.25.12
                         shell: Sh
-                        command: go build -v -buildvcs=false -ldflags "-X main.build=<+pipeline.sequenceId>" -a -o release/linux/arm64/plugin
+                        command: CGO_ENABLED=0 go build -v -buildvcs=false -ldflags "-X main.build=<+pipeline.sequenceId>" -a -o release/linux/arm64/plugin
                       when:
                         stageStatus: Success
                         condition: |
@@ -153,7 +153,7 @@ pipeline:
                         connectorRef: Plugins_Docker_Hub_Connector
                         image: golang:1.25.12
                         shell: Sh
-                        command: go build -v -buildvcs=false -ldflags "-X main.version=<+codebase.tag> -X main.build=<+pipeline.sequenceId>" -a -o release/linux/arm64/plugin
+                        command: CGO_ENABLED=0 go build -v -buildvcs=false -ldflags "-X main.version=<+codebase.tag> -X main.build=<+pipeline.sequenceId>" -a -o release/linux/arm64/plugin
                       when:
                         stageStatus: Success
                         condition: <+codebase.build.type> == "tag"
@@ -209,7 +209,7 @@ pipeline:
                         connectorRef: Plugins_Docker_Hub_Connector
                         image: golang:1.24-windowsservercore-1809
                         shell: Sh
-                        command: go build -v -buildvcs=false -ldflags "-X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
+                        command: CGO_ENABLED=0 go build -v -buildvcs=false -ldflags "-X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
                       when:
                         stageStatus: Success
                         condition: |
@@ -222,7 +222,7 @@ pipeline:
                         connectorRef: Plugins_Docker_Hub_Connector
                         image: golang:1.24-windowsservercore-1809
                         shell: Sh
-                        command: go build -v -buildvcs=false -ldflags "-X main.version=<+codebase.tag> -X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
+                        command: CGO_ENABLED=0 go build -v -buildvcs=false -ldflags "-X main.version=<+codebase.tag> -X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
                       when:
                         stageStatus: Success
                         condition: <+codebase.build.type> == "tag"
@@ -293,7 +293,7 @@ pipeline:
                         connectorRef: Plugins_Docker_Hub_Connector
                         image: golang:1.25.12
                         shell: Sh
-                        command: go build -v -buildvcs=false -ldflags "-X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
+                        command: CGO_ENABLED=0 go build -v -buildvcs=false -ldflags "-X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
                       when:
                         stageStatus: Success
                         condition: |
@@ -306,7 +306,7 @@ pipeline:
                         connectorRef: Plugins_Docker_Hub_Connector
                         image: golang:1.25.12
                         shell: Sh
-                        command: go build -v -buildvcs=false -ldflags "-X main.version=<+codebase.tag> -X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
+                        command: CGO_ENABLED=0 go build -v -buildvcs=false -ldflags "-X main.version=<+codebase.tag> -X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
                       when:
                         stageStatus: Success
                         condition: <+codebase.build.type> == "tag"
@@ -379,7 +379,7 @@ pipeline:
                         connectorRef: Plugins_Docker_Hub_Connector
                         image: golang:1.25.12
                         shell: Sh
-                        command: go build -v -ldflags "-X main.build=<+pipeline.sequenceId>" -a -o release/linux/amd64/plugin
+                        command: CGO_ENABLED=0 go build -v -ldflags "-X main.build=<+pipeline.sequenceId>" -a -o release/linux/amd64/plugin
                       when:
                         stageStatus: Success
                         condition: |
@@ -392,7 +392,7 @@ pipeline:
                         connectorRef: Plugins_Docker_Hub_Connector
                         image: golang:1.25.12
                         shell: Sh
-                        command: go build -v -ldflags "-X main.version=<+codebase.tag> -X main.build=<+pipeline.sequenceId>" -a -o release/linux/amd64/plugin
+                        command: CGO_ENABLED=0 go build -v -ldflags "-X main.version=<+codebase.tag> -X main.build=<+pipeline.sequenceId>" -a -o release/linux/amd64/plugin
                       when:
                         stageStatus: Success
                         condition: <+codebase.build.type> == "tag"
@@ -472,7 +472,7 @@ pipeline:
                         connectorRef: Plugins_Docker_Hub_Connector
                         image: golang:1.25.12
                         shell: Sh
-                        command: go build -v -buildvcs=false -ldflags "-X main.build=<+pipeline.sequenceId>" -a -o release/linux/arm64/plugin
+                        command: CGO_ENABLED=0 go build -v -buildvcs=false -ldflags "-X main.build=<+pipeline.sequenceId>" -a -o release/linux/arm64/plugin
                       when:
                         stageStatus: Success
                         condition: |
@@ -485,7 +485,7 @@ pipeline:
                         connectorRef: Plugins_Docker_Hub_Connector
                         image: golang:1.25.12
                         shell: Sh
-                        command: go build -v -buildvcs=false -ldflags "-X main.version=<+codebase.tag> -X main.build=<+pipeline.sequenceId>" -a -o release/linux/arm64/plugin
+                        command: CGO_ENABLED=0 go build -v -buildvcs=false -ldflags "-X main.version=<+codebase.tag> -X main.build=<+pipeline.sequenceId>" -a -o release/linux/arm64/plugin
                       when:
                         stageStatus: Success
                         condition: <+codebase.build.type> == "tag"
@@ -566,7 +566,7 @@ pipeline:
                         connectorRef: Plugins_Docker_Hub_Connector
                         image: golang:1.24-windowsservercore-1809
                         shell: Sh
-                        command: go build -v -buildvcs=false -ldflags "-X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
+                        command: CGO_ENABLED=0 go build -v -buildvcs=false -ldflags "-X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
                       when:
                         stageStatus: Success
                         condition: |
@@ -579,7 +579,7 @@ pipeline:
                         connectorRef: Plugins_Docker_Hub_Connector
                         image: golang:1.24-windowsservercore-1809
                         shell: Sh
-                        command: go build -v -buildvcs=false -ldflags "-X main.version=<+codebase.tag> -X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
+                        command: CGO_ENABLED=0 go build -v -buildvcs=false -ldflags "-X main.version=<+codebase.tag> -X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
                       when:
                         stageStatus: Success
                         condition: <+codebase.build.type> == "tag"
@@ -654,7 +654,7 @@ pipeline:
                         connectorRef: Plugins_Docker_Hub_Connector
                         image: golang:1.25.12
                         shell: Sh
-                        command: go build -v -buildvcs=false -ldflags "-X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
+                        command: CGO_ENABLED=0 go build -v -buildvcs=false -ldflags "-X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
                       when:
                         stageStatus: Success
                         condition: |
@@ -667,7 +667,7 @@ pipeline:
                         connectorRef: Plugins_Docker_Hub_Connector
                         image: golang:1.25.12
                         shell: Sh
-                        command: go build -v -buildvcs=false -ldflags "-X main.version=<+codebase.tag> -X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
+                        command: CGO_ENABLED=0 go build -v -buildvcs=false -ldflags "-X main.version=<+codebase.tag> -X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
                       when:
                         stageStatus: Success
                         condition: <+codebase.build.type> == "tag"
@@ -733,7 +733,7 @@ pipeline:
                         connectorRef: Plugins_Docker_Hub_Connector
                         image: golang:1.25.12
                         shell: Sh
-                        command: go build -v -buildvcs=false -ldflags "-X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
+                        command: CGO_ENABLED=0 go build -v -buildvcs=false -ldflags "-X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
                       when:
                         stageStatus: Success
                         condition: <+codebase.build.type> != "tag"
@@ -745,7 +745,7 @@ pipeline:
                         connectorRef: Plugins_Docker_Hub_Connector
                         image: golang:1.25.12
                         shell: Sh
-                        command: go build -v -buildvcs=false -ldflags "-X main.version=<+codebase.tag> -X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
+                        command: CGO_ENABLED=0 go build -v -buildvcs=false -ldflags "-X main.version=<+codebase.tag> -X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
                       when:
                         stageStatus: Success
                         condition: <+codebase.build.type> == "tag"
@@ -820,7 +820,7 @@ pipeline:
                         connectorRef: Plugins_Docker_Hub_Connector
                         image: golang:1.25.12
                         shell: Sh
-                        command: go build -v -buildvcs=false -ldflags "-X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
+                        command: CGO_ENABLED=0 go build -v -buildvcs=false -ldflags "-X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
                       when:
                         stageStatus: Success
                         condition: <+codebase.build.type> != "tag"
@@ -832,7 +832,7 @@ pipeline:
                         connectorRef: Plugins_Docker_Hub_Connector
                         image: golang:1.25.12
                         shell: Sh
-                        command: go build -v -buildvcs=false -ldflags "-X main.version=<+codebase.tag> -X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
+                        command: CGO_ENABLED=0 go build -v -buildvcs=false -ldflags "-X main.version=<+codebase.tag> -X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
                       when:
                         stageStatus: Success
                         condition: <+codebase.build.type> == "tag"
@@ -939,11 +939,11 @@ pipeline:
                     image: golang:1.25.12
                     shell: Sh
                     command: |-
-                      GOOS=linux   GOARCH=amd64 go build -v -ldflags "-X main.version=${DRONE_TAG##v} -X main.build=${DRONE_BUILD_NUMBER}" -a -o release/plugin-linux-amd64
-                      GOOS=linux   GOARCH=arm64 go build -v -ldflags "-X main.version=${DRONE_TAG##v} -X main.build=${DRONE_BUILD_NUMBER}" -a -o release/plugin-linux-arm64
-                      GOOS=darwin  GOARCH=amd64 go build -v -ldflags "-X main.version=${DRONE_TAG##v} -X main.build=${DRONE_BUILD_NUMBER}" -a -o release/plugin-darwin-amd64
-                      GOOS=darwin  GOARCH=arm64 go build -v -ldflags "-X main.version=${DRONE_TAG##v} -X main.build=${DRONE_BUILD_NUMBER}" -a -o release/plugin-darwin-arm64
-                      GOOS=windows GOARCH=amd64 go build -v -ldflags "-X main.version=${DRONE_TAG##v} -X main.build=${DRONE_BUILD_NUMBER}" -a -o release/plugin-windows-amd64
+                      CGO_ENABLED=0 GOOS=linux   GOARCH=amd64 go build -v -ldflags "-X main.version=${DRONE_TAG##v} -X main.build=${DRONE_BUILD_NUMBER}" -a -o release/plugin-linux-amd64
+                      CGO_ENABLED=0 GOOS=linux   GOARCH=arm64 go build -v -ldflags "-X main.version=${DRONE_TAG##v} -X main.build=${DRONE_BUILD_NUMBER}" -a -o release/plugin-linux-arm64
+                      CGO_ENABLED=0 GOOS=darwin  GOARCH=amd64 go build -v -ldflags "-X main.version=${DRONE_TAG##v} -X main.build=${DRONE_BUILD_NUMBER}" -a -o release/plugin-darwin-amd64
+                      CGO_ENABLED=0 GOOS=darwin  GOARCH=arm64 go build -v -ldflags "-X main.version=${DRONE_TAG##v} -X main.build=${DRONE_BUILD_NUMBER}" -a -o release/plugin-darwin-arm64
+                      CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -v -ldflags "-X main.version=${DRONE_TAG##v} -X main.build=${DRONE_BUILD_NUMBER}" -a -o release/plugin-windows-amd64
 
 
                       apt-get update -y
