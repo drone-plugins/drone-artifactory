@@ -45,12 +45,13 @@ RUN certutil -generateSSTFromWU C:\certificates\ca-certificates.sst; `
     Expand-Archive -Path "C:\gradle.zip" -DestinationPath "C:\gradle"; `
     `
     # Patch vulnerable jars bundled in Gradle (overwrite in place, keep original filenames for classpath compatibility)
-    Invoke-WebRequest -Uri "https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.21.5/jackson-databind-2.21.5.jar" -OutFile "C:\gradle\gradle-8.13\lib\jackson-databind-2.16.1.jar"; `
-    Invoke-WebRequest -Uri "https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-core/2.21.5/jackson-core-2.21.5.jar" -OutFile "C:\gradle\gradle-8.13\lib\jackson-core-2.16.1.jar"; `
+    Invoke-WebRequest -Uri "https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.21.6/jackson-databind-2.21.6.jar" -OutFile "C:\gradle\gradle-8.13\lib\jackson-databind-2.16.1.jar"; `
+    Invoke-WebRequest -Uri "https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-core/2.21.6/jackson-core-2.21.6.jar" -OutFile "C:\gradle\gradle-8.13\lib\jackson-core-2.16.1.jar"; `
     Invoke-WebRequest -Uri "https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-annotations/2.21/jackson-annotations-2.21.jar" -OutFile "C:\gradle\gradle-8.13\lib\jackson-annotations-2.16.1.jar"; `
     Invoke-WebRequest -Uri "https://repo1.maven.org/maven2/org/bouncycastle/bcprov-jdk18on/1.85/bcprov-jdk18on-1.85.jar" -OutFile "C:\gradle\gradle-8.13\lib\plugins\bcprov-jdk18on-1.78.1.jar"; `
     Invoke-WebRequest -Uri "https://repo1.maven.org/maven2/org/bouncycastle/bcpg-jdk18on/1.85/bcpg-jdk18on-1.85.jar" -OutFile "C:\gradle\gradle-8.13\lib\plugins\bcpg-jdk18on-1.78.1.jar"; `
-    Invoke-WebRequest -Uri "https://repo1.maven.org/maven2/org/apache/commons/commons-lang3/3.18.0/commons-lang3-3.18.0.jar" -OutFile "C:\gradle\gradle-8.13\lib\commons-lang3-3.14.0.jar"
+    Invoke-WebRequest -Uri "https://repo1.maven.org/maven2/org/apache/commons/commons-lang3/3.18.0/commons-lang3-3.18.0.jar" -OutFile "C:\gradle\gradle-8.13\lib\commons-lang3-3.14.0.jar"; `
+    Invoke-WebRequest -Uri "https://repo1.maven.org/maven2/org/codehaus/plexus/plexus-utils/3.6.1/plexus-utils-3.6.1.jar" -OutFile "C:\gradle\gradle-8.13\lib\plugins\plexus-utils-3.5.1.jar"
 
 
 # Stage 2: PowerShell 7 installer stage.
