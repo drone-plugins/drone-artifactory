@@ -213,11 +213,17 @@ func runCommand(ctx context.Context, args Args, command []string, captureStdout 
 		"JFROG_CLI_OFFER_CONFIG=false",
 		"JFROG_CLI_AVOID_NEW_VERSION_WARNING=true",
 	)
+	environment = pinJFrogCLIHome(environment)
 	environment, cleanup, err := prepareNpmEnvironment(command, args, environment)
 	if err != nil {
 		return nil, err
 	}
 	defer cleanup()
+	environment, gradleCleanup, err := prepareGradleEnvironment(command, args, environment)
+	if err != nil {
+		return nil, err
+	}
+	defer gradleCleanup()
 	cmd.Env = environment
 
 	var stdout bytes.Buffer

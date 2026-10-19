@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"strings"
 	"sync"
 
 	"github.com/sirupsen/logrus"
@@ -85,7 +86,19 @@ func WriteKnownGoodServerCertsForTls(args Args) error {
 		return nil
 	}
 
-	path := serverCertPath(args)
+	targets := []string{jfrogCLICertificatePath()}
+	if custom := serverCertPath(args); !samePath(custom, targets[0]) {
+		targets = append(targets, custom)
+	}
+	for _, path := range targets {
+		if err := writePEMFile(path, args.PEMFileContents); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func writePEMFile(path, contents string) error {
 	logrus.Printf("Writing pem file at %q\n", path)
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0700); err != nil {
@@ -101,7 +114,7 @@ func WriteKnownGoodServerCertsForTls(args Args) error {
 		temp.Close()
 		return fmt.Errorf("error setting pem permissions: %w", err)
 	}
-	if _, err := temp.WriteString(args.PEMFileContents); err != nil {
+	if _, err := temp.WriteString(contents); err != nil {
 		temp.Close()
 		return fmt.Errorf("error writing pem file: %w", err)
 	}
@@ -124,15 +137,47 @@ func WriteKnownGoodServerCertsForTls(args Args) error {
 }
 
 func serverCertPath(args Args) string {
-	path := args.PEMFilePath
-	if path == "" {
+	if args.PEMFilePath != "" {
+		return args.PEMFilePath
+	}
+	return jfrogCLICertificatePath()
+}
+
+// jfrogCLIHome follows JFrog CLI 2.115 resolution order and is pinned into
+// JFROG_CLI_HOME_DIR before every command. A customer PEM written to any other
+// profile is invisible to the CLI's /api/system/version request.
+func jfrogCLIHome() string {
+	if home := strings.TrimSpace(os.Getenv("JFROG_CLI_HOME_DIR")); home != "" {
+		if absolute, err := filepath.Abs(home); err == nil {
+			return absolute
+		}
+		return home
+	}
+	userHome := os.Getenv("HOME")
+	if userHome == "" {
+		userHome = os.Getenv("USERPROFILE")
+	}
+	if userHome == "" {
 		if runtime.GOOS == "windows" {
-			path = "C:/users/ContainerAdministrator/.jfrog/security/certs/cert.pem"
+			userHome = `C:\Users\ContainerAdministrator`
 		} else {
-			path = "/root/.jfrog/security/certs/cert.pem"
+			userHome = "/root"
 		}
 	}
-	return path
+	return filepath.Join(userHome, ".jfrog")
+}
+
+func jfrogCLICertificatePath() string {
+	return filepath.Join(jfrogCLIHome(), "security", "certs", "cert.pem")
+}
+
+func samePath(left, right string) bool {
+	left = filepath.Clean(left)
+	right = filepath.Clean(right)
+	if runtime.GOOS == "windows" {
+		return strings.EqualFold(left, right)
+	}
+	return left == right
 }
 
 func GetRtCommandsList(args Args) ([][]string, error) {
