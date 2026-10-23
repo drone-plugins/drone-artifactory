@@ -1007,13 +1007,23 @@ pipeline:
                       <+codebase.build.type> == "tag" || <+codebase.build.type> == "branch"
               - step:
                   type: Run
+                  name: Prepare patched Go SDK
+                  identifier: Build_Binaries_GoSDK
+                  spec:
+                    image: harness0.harness.io/oci/docker_artifacts/hhi/go:1.26.10
+                    shell: Sh
+                    command: mkdir -p .hhi-go-toolchain && cp -a /usr/lib/go/. .hhi-go-toolchain/
+                    connectorRef: Plugins_Docker_Hub_Connector
+              - step:
+                  type: Run
                   name: Build Binaries
                   identifier: Build_Binaries
                   spec:
                     connectorRef: Plugins_Docker_Hub_Connector
-                    image: harness0.harness.io/oci/docker_artifacts/hhi/go:1.26.10
+                    image: harness0.harness.io/oci/docker_artifacts/hhi/harnessos-alpine:1
                     shell: Sh
                     command: |-
+                      export PATH="$PWD/.hhi-go-toolchain/bin:$PATH" GOPATH=/go GOTOOLCHAIN=local
                       CGO_ENABLED=0 GOOS=linux   GOARCH=amd64 go build -v -ldflags "-X main.version=${DRONE_TAG##v} -X main.build=${DRONE_BUILD_NUMBER}" -a -o release/plugin-linux-amd64
                       CGO_ENABLED=0 GOOS=linux   GOARCH=arm64 go build -v -ldflags "-X main.version=${DRONE_TAG##v} -X main.build=${DRONE_BUILD_NUMBER}" -a -o release/plugin-linux-arm64
                       CGO_ENABLED=0 GOOS=darwin  GOARCH=amd64 go build -v -ldflags "-X main.version=${DRONE_TAG##v} -X main.build=${DRONE_BUILD_NUMBER}" -a -o release/plugin-darwin-amd64
@@ -1021,8 +1031,8 @@ pipeline:
                       CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -v -ldflags "-X main.version=${DRONE_TAG##v} -X main.build=${DRONE_BUILD_NUMBER}" -a -o release/plugin-windows-amd64
 
 
-                      apt-get update -y
-                      apt-get install -y zstd
+                      apk update
+                      apk add --no-cache zstd
                       zstd release/plugin-linux-amd64
                       zstd release/plugin-linux-arm64
                       zstd release/plugin-darwin-amd64
