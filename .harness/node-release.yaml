@@ -278,7 +278,9 @@ pipeline:
                       timeout: 60m
                       spec:
                         connectorRef: Plugins_Docker_Hub_Connector
-                        image: golang:1.26.10-windowsservercore-1809
+                        image: golang:1.24-windowsservercore-1809
+                        envVariables:
+                          GOTOOLCHAIN: go1.26.10
                         shell: Sh
                         command: |
                           set -eu
@@ -409,7 +411,9 @@ pipeline:
                       timeout: 60m
                       spec:
                         connectorRef: Plugins_Docker_Hub_Connector
-                        image: golang:1.26.10
+                        image: golang:1.25.12
+                        envVariables:
+                          GOTOOLCHAIN: go1.26.10
                         shell: Sh
                         command: |
                           set -eu
@@ -542,7 +546,9 @@ pipeline:
                       timeout: 60m
                       spec:
                         connectorRef: Plugins_Docker_Hub_Connector
-                        image: golang:1.26.10
+                        image: golang:1.25.12
+                        envVariables:
+                          GOTOOLCHAIN: go1.26.10
                         shell: Sh
                         command: |
                           set -eu

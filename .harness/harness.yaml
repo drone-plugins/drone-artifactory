@@ -207,7 +207,9 @@ pipeline:
                       type: Run
                       spec:
                         connectorRef: Plugins_Docker_Hub_Connector
-                        image: golang:1.26.10-windowsservercore-1809
+                        image: golang:1.24-windowsservercore-1809
+                        envVariables:
+                          GOTOOLCHAIN: go1.26.10
                         shell: Sh
                         command: CGO_ENABLED=0 go build -v -buildvcs=false -ldflags "-X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
                       when:
@@ -220,7 +222,9 @@ pipeline:
                       type: Run
                       spec:
                         connectorRef: Plugins_Docker_Hub_Connector
-                        image: golang:1.26.10-windowsservercore-1809
+                        image: golang:1.24-windowsservercore-1809
+                        envVariables:
+                          GOTOOLCHAIN: go1.26.10
                         shell: Sh
                         command: CGO_ENABLED=0 go build -v -buildvcs=false -ldflags "-X main.version=<+codebase.tag> -X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
                       when:
@@ -291,7 +295,9 @@ pipeline:
                       type: Run
                       spec:
                         connectorRef: Plugins_Docker_Hub_Connector
-                        image: golang:1.26.10
+                        image: golang:1.25.12
+                        envVariables:
+                          GOTOOLCHAIN: go1.26.10
                         shell: Sh
                         command: CGO_ENABLED=0 go build -v -buildvcs=false -ldflags "-X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
                       when:
@@ -304,7 +310,9 @@ pipeline:
                       type: Run
                       spec:
                         connectorRef: Plugins_Docker_Hub_Connector
-                        image: golang:1.26.10
+                        image: golang:1.25.12
+                        envVariables:
+                          GOTOOLCHAIN: go1.26.10
                         shell: Sh
                         command: CGO_ENABLED=0 go build -v -buildvcs=false -ldflags "-X main.version=<+codebase.tag> -X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
                       when:
@@ -564,7 +572,9 @@ pipeline:
                       type: Run
                       spec:
                         connectorRef: Plugins_Docker_Hub_Connector
-                        image: golang:1.26.10-windowsservercore-1809
+                        image: golang:1.24-windowsservercore-1809
+                        envVariables:
+                          GOTOOLCHAIN: go1.26.10
                         shell: Sh
                         command: CGO_ENABLED=0 go build -v -buildvcs=false -ldflags "-X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
                       when:
@@ -577,7 +587,9 @@ pipeline:
                       type: Run
                       spec:
                         connectorRef: Plugins_Docker_Hub_Connector
-                        image: golang:1.26.10-windowsservercore-1809
+                        image: golang:1.24-windowsservercore-1809
+                        envVariables:
+                          GOTOOLCHAIN: go1.26.10
                         shell: Sh
                         command: CGO_ENABLED=0 go build -v -buildvcs=false -ldflags "-X main.version=<+codebase.tag> -X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
                       when:
@@ -652,7 +664,9 @@ pipeline:
                       type: Run
                       spec:
                         connectorRef: Plugins_Docker_Hub_Connector
-                        image: golang:1.26.10
+                        image: golang:1.25.12
+                        envVariables:
+                          GOTOOLCHAIN: go1.26.10
                         shell: Sh
                         command: CGO_ENABLED=0 go build -v -buildvcs=false -ldflags "-X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
                       when:
@@ -665,7 +679,9 @@ pipeline:
                       type: Run
                       spec:
                         connectorRef: Plugins_Docker_Hub_Connector
-                        image: golang:1.26.10
+                        image: golang:1.25.12
+                        envVariables:
+                          GOTOOLCHAIN: go1.26.10
                         shell: Sh
                         command: CGO_ENABLED=0 go build -v -buildvcs=false -ldflags "-X main.version=<+codebase.tag> -X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
                       when:
@@ -731,7 +747,9 @@ pipeline:
                       identifier: Build_Binaries_Branch
                       spec:
                         connectorRef: Plugins_Docker_Hub_Connector
-                        image: golang:1.26.10
+                        image: golang:1.25.12
+                        envVariables:
+                          GOTOOLCHAIN: go1.26.10
                         shell: Sh
                         command: CGO_ENABLED=0 go build -v -buildvcs=false -ldflags "-X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
                       when:
@@ -743,7 +761,9 @@ pipeline:
                       identifier: Build_Binaries_TAG
                       spec:
                         connectorRef: Plugins_Docker_Hub_Connector
-                        image: golang:1.26.10
+                        image: golang:1.25.12
+                        envVariables:
+                          GOTOOLCHAIN: go1.26.10
                         shell: Sh
                         command: CGO_ENABLED=0 go build -v -buildvcs=false -ldflags "-X main.version=<+codebase.tag> -X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
                       when:
@@ -818,7 +838,9 @@ pipeline:
                       type: Run
                       spec:
                         connectorRef: Plugins_Docker_Hub_Connector
-                        image: golang:1.26.10
+                        image: golang:1.25.12
+                        envVariables:
+                          GOTOOLCHAIN: go1.26.10
                         shell: Sh
                         command: CGO_ENABLED=0 go build -v -buildvcs=false -ldflags "-X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
                       when:
@@ -830,7 +852,9 @@ pipeline:
                       type: Run
                       spec:
                         connectorRef: Plugins_Docker_Hub_Connector
-                        image: golang:1.26.10
+                        image: golang:1.25.12
+                        envVariables:
+                          GOTOOLCHAIN: go1.26.10
                         shell: Sh
                         command: CGO_ENABLED=0 go build -v -buildvcs=false -ldflags "-X main.version=<+codebase.tag> -X main.build=<+pipeline.sequenceId>" -a -o release/windows/amd64/plugin
                       when:
