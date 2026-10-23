@@ -32,7 +32,7 @@ pipeline:
                       identifier: build_verified_plugin_binary
                       spec:
                         connectorRef: Plugins_Docker_Hub_Connector
-                        image: golang:1.25.13-alpine
+                        image: harness0.harness.io/oci/docker_artifacts/hhi/go:1.26.10
                         shell: Sh
                         command: |
                           set -eu
@@ -153,7 +153,7 @@ pipeline:
                       identifier: build_verified_plugin_binary
                       spec:
                         connectorRef: Plugins_Docker_Hub_Connector
-                        image: golang:1.25.13-alpine
+                        image: harness0.harness.io/oci/docker_artifacts/hhi/go:1.26.10
                         shell: Sh
                         command: |
                           set -eu
@@ -278,7 +278,7 @@ pipeline:
                       timeout: 60m
                       spec:
                         connectorRef: Plugins_Docker_Hub_Connector
-                        image: golang:1.24-windowsservercore-1809
+                        image: golang:1.26.10-windowsservercore-1809
                         shell: Sh
                         command: |
                           set -eu
@@ -409,7 +409,7 @@ pipeline:
                       timeout: 60m
                       spec:
                         connectorRef: Plugins_Docker_Hub_Connector
-                        image: golang:1.25.12
+                        image: golang:1.26.10
                         shell: Sh
                         command: |
                           set -eu
@@ -542,7 +542,7 @@ pipeline:
                       timeout: 60m
                       spec:
                         connectorRef: Plugins_Docker_Hub_Connector
-                        image: golang:1.25.12
+                        image: golang:1.26.10
                         shell: Sh
                         command: |
                           set -eu
@@ -672,7 +672,7 @@ pipeline:
                   identifier: verify_release_source
                   spec:
                     connectorRef: Plugins_Docker_Hub_Connector
-                    image: alpine:3.21
+                    image: harness0.harness.io/oci/docker_artifacts/hhi/harnessos-alpine:1
                     shell: Sh
                     command: |
                       set -eu
