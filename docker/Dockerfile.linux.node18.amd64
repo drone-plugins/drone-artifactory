@@ -1,5 +1,5 @@
 ARG RUNTIME_IMAGE=node:18.20.8-alpine3.21@sha256:929b04d7c782f04f615cf785488fed452b6569f87c73ff666ad553a7554f0006
-FROM harness0.harness.io/oci/docker_artifacts/hhi/harnessos-alpine:1 AS hhi-ca-certificates
+FROM harness0.harness.io/oci/docker_artifacts/hhi/harnessos-alpine:1@sha256:290a37c85b4284d2c11fa0778e5da79643d912a1f5a57d6f701b77644503b7e7 AS hhi-ca-certificates
 RUN apk add --no-cache 'ca-certificates>=20261020-r0'
 
 FROM ${RUNTIME_IMAGE}

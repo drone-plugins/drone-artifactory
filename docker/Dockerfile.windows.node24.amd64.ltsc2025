@@ -11,15 +11,22 @@ RUN New-Item -ItemType Directory -Force C:/downloads,C:/PowerShell | Out-Null; `
     Invoke-WebRequest -UseBasicParsing -Uri 'https://github.com/PowerShell/PowerShell/releases/download/v7.4.13/PowerShell-7.4.13-win-x64.zip' -OutFile 'C:/downloads/powershell.zip'; `
     if ((Get-FileHash -Algorithm SHA256 'C:/downloads/powershell.zip').Hash.ToLowerInvariant() -ne '8fb52d2172d285b230c2857a90ba4dd28ecf6477ba4a91f91b6854a647b33b65') { throw 'PowerShell SHA-256 mismatch' }; `
     Expand-Archive "C:/downloads/powershell.zip" -DestinationPath "C:/PowerShell"; `
-    Remove-Item "C:/downloads/powershell.zip" -Force
+    Remove-Item "C:/downloads/powershell.zip" -Force; `
+    Invoke-WebRequest -UseBasicParsing -Uri 'https://nodejs.org/dist/v24.22.1/node-v24.22.1-win-x64.zip' -OutFile 'C:/downloads/node.zip'; `
+    if ((Get-FileHash -Algorithm SHA256 'C:/downloads/node.zip').Hash.ToLowerInvariant() -ne 'd2046d28c2c3dcd211ac5145c0bf30e2047ef9dfb306693c8c6e2eccd8b95fa5') { throw 'Node.js SHA-256 mismatch' }; `
+    Expand-Archive 'C:/downloads/node.zip' -DestinationPath 'C:/node'; `
+    Remove-Item 'C:/downloads/node.zip' -Force
 
 FROM ${RUNTIME_IMAGE}
 USER ContainerAdministrator
 COPY --from=builder C:/PowerShell C:/PowerShell
 SHELL ["C:\\PowerShell\\pwsh.exe", "-NoLogo", "-NonInteractive", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
+RUN Remove-Item -Recurse -Force C:/tools/node
+COPY --from=builder C:/node/node-v24.22.1-win-x64/ C:/tools/node/
+
 RUN New-Item -ItemType Directory -Force C:/bin,C:/temp,C:/uploads,C:/users/ContainerAdministrator/.jfrog/security/certs | Out-Null; `
-    if (-not (Get-Command node.exe -ErrorAction SilentlyContinue)) { throw 'Node is unavailable from the inherited runtime PATH' }
+    if ((node --version) -ne 'v24.22.1') { throw 'Patched Node.js runtime is not active' }
 COPY --from=builder C:/downloads/jfrog.exe C:/bin/jfrog.exe
 COPY --from=builder C:/downloads/jfrog.exe C:/bin/jf.exe
 COPY release/windows/amd64/plugin C:/bin/drone-artifactory.exe
@@ -29,7 +36,7 @@ ENV CI=true `
     PATH="C:\\bin;${PATH}"
 
 LABEL org.opencontainers.image.source="https://github.com/drone-plugins/drone-artifactory" `
-      io.harness.node.version="24.20.0" `
+      io.harness.node.version="24.22.1" `
       io.harness.windows.build="26100"
 
 ENTRYPOINT ["drone-artifactory"]
