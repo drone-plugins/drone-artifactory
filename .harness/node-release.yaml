@@ -52,6 +52,9 @@ pipeline:
                         connectorRef: Plugins_Docker_Hub_Connector
                         image: plugins/docker:21.3.0
                         settings:
+                          base_image_registry: harness0.harness.io
+                          base_image_username: <+secrets.getValue("harness0HARUsername")>
+                          base_image_password: <+secrets.getValue("harness0HARPAT")>
                           username: drone
                           password: <+secrets.getValue("Plugins_Docker_Hub_Pat")>
                           repo: plugins/artifactory
@@ -66,6 +69,8 @@ pipeline:
                       name: Publish moving npm Node 18
                       identifier: publish_moving_npm_node18
                       spec:
+                        baseImageConnectorRefs:
+                          - HHI_Public_Images
                         connectorRef: Plugins_Docker_Hub_Connector
                         repo: plugins/artifactory
                         tags: [npm-linux-node18-amd64]
@@ -83,6 +88,9 @@ pipeline:
                         connectorRef: Plugins_Docker_Hub_Connector
                         image: plugins/docker:21.3.0
                         settings:
+                          base_image_registry: harness0.harness.io
+                          base_image_username: <+secrets.getValue("harness0HARUsername")>
+                          base_image_password: <+secrets.getValue("harness0HARPAT")>
                           username: drone
                           password: <+secrets.getValue("Plugins_Docker_Hub_Pat")>
                           repo: plugins/artifactory
@@ -97,6 +105,8 @@ pipeline:
                       name: Publish moving npm Node 22
                       identifier: publish_moving_npm_node22
                       spec:
+                        baseImageConnectorRefs:
+                          - HHI_Public_Images
                         connectorRef: Plugins_Docker_Hub_Connector
                         repo: plugins/artifactory
                         tags: [npm-linux-node22-amd64]
@@ -114,6 +124,9 @@ pipeline:
                         connectorRef: Plugins_Docker_Hub_Connector
                         image: plugins/docker:21.3.0
                         settings:
+                          base_image_registry: harness0.harness.io
+                          base_image_username: <+secrets.getValue("harness0HARUsername")>
+                          base_image_password: <+secrets.getValue("harness0HARPAT")>
                           username: drone
                           password: <+secrets.getValue("Plugins_Docker_Hub_Pat")>
                           repo: plugins/artifactory
@@ -128,6 +141,8 @@ pipeline:
                       name: Publish moving npm Node 24
                       identifier: publish_moving_npm_node24
                       spec:
+                        baseImageConnectorRefs:
+                          - HHI_Public_Images
                         connectorRef: Plugins_Docker_Hub_Connector
                         repo: plugins/artifactory
                         tags: [npm-linux-node24-amd64]
@@ -173,6 +188,9 @@ pipeline:
                         connectorRef: Plugins_Docker_Hub_Connector
                         image: plugins/docker:21.3.0
                         settings:
+                          base_image_registry: harness0.harness.io
+                          base_image_username: <+secrets.getValue("harness0HARUsername")>
+                          base_image_password: <+secrets.getValue("harness0HARPAT")>
                           username: drone
                           password: <+secrets.getValue("Plugins_Docker_Hub_Pat")>
                           repo: plugins/artifactory
@@ -187,6 +205,8 @@ pipeline:
                       name: Publish moving npm Node 18
                       identifier: publish_moving_npm_node18
                       spec:
+                        baseImageConnectorRefs:
+                          - HHI_Public_Images
                         connectorRef: Plugins_Docker_Hub_Connector
                         repo: plugins/artifactory
                         tags: [npm-linux-node18-arm64]
@@ -204,6 +224,9 @@ pipeline:
                         connectorRef: Plugins_Docker_Hub_Connector
                         image: plugins/docker:21.3.0
                         settings:
+                          base_image_registry: harness0.harness.io
+                          base_image_username: <+secrets.getValue("harness0HARUsername")>
+                          base_image_password: <+secrets.getValue("harness0HARPAT")>
                           username: drone
                           password: <+secrets.getValue("Plugins_Docker_Hub_Pat")>
                           repo: plugins/artifactory
@@ -218,6 +241,8 @@ pipeline:
                       name: Publish moving npm Node 22
                       identifier: publish_moving_npm_node22
                       spec:
+                        baseImageConnectorRefs:
+                          - HHI_Public_Images
                         connectorRef: Plugins_Docker_Hub_Connector
                         repo: plugins/artifactory
                         tags: [npm-linux-node22-arm64]
@@ -235,6 +260,9 @@ pipeline:
                         connectorRef: Plugins_Docker_Hub_Connector
                         image: plugins/docker:21.3.0
                         settings:
+                          base_image_registry: harness0.harness.io
+                          base_image_username: <+secrets.getValue("harness0HARUsername")>
+                          base_image_password: <+secrets.getValue("harness0HARPAT")>
                           username: drone
                           password: <+secrets.getValue("Plugins_Docker_Hub_Pat")>
                           repo: plugins/artifactory
@@ -249,6 +277,8 @@ pipeline:
                       name: Publish moving npm Node 24
                       identifier: publish_moving_npm_node24
                       spec:
+                        baseImageConnectorRefs:
+                          - HHI_Public_Images
                         connectorRef: Plugins_Docker_Hub_Connector
                         repo: plugins/artifactory
                         tags: [npm-linux-node24-arm64]
