@@ -1123,7 +1123,6 @@ pipeline:
                       CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -v -ldflags "-X main.version=${DRONE_TAG##v} -X main.build=${DRONE_BUILD_NUMBER}" -a -o release/plugin-windows-amd64
 
 
-                      apk update
                       apk add --no-cache zstd
                       zstd release/plugin-linux-amd64
                       zstd release/plugin-linux-arm64
