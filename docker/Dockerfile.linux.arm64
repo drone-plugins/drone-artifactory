@@ -5,7 +5,7 @@ FROM harness0.harness.io/oci/docker_artifacts/hhi/harnessos-alpine:1@sha256:290a
 ENV GODEBUG netdns=go
 ENV CI=true
 
-ARG JRE_VERSION=openjdk17
+ARG JRE_VERSION=openjdk-17-default-jdk
 ARG GRADLE_VERSION=8.13
 
 # Copy CA certificates
@@ -18,12 +18,18 @@ RUN apk update && apk upgrade --no-cache \
     && apk add --no-cache \
     bash \
     "$JRE_VERSION" \
+    'java-cacerts>=20261020-r0' \
     maven \
     curl \
     docker \
     docker-cli \
     && rm -f /usr/libexec/docker/cli-plugins/docker-buildx \
     && rm -rf /var/cache/apk/*
+
+# Preserve native Java CA regeneration, then remove the incident roots.
+COPY docker/update-java-trust.sh /etc/ca-certificates/update.d/zz-emudhra-java
+RUN chmod 0755 /etc/ca-certificates/update.d/zz-emudhra-java \
+    && update-ca-certificates
 
 # Install Gradle
 RUN curl -fsSL https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip -o /tmp/gradle.zip \
