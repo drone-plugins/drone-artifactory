@@ -1,7 +1,12 @@
 package plugin
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha1"
+	"crypto/x509"
+	"encoding/hex"
+	"encoding/pem"
 	"fmt"
 	"os"
 	"os/exec"
@@ -46,6 +51,11 @@ func HandleRtCommands(ctx context.Context, args Args) error {
 		logrus.Println("Error Unable to write TLS certs err = ", err)
 		return err
 	}
+	trustCleanup, err := prepareNpmSystemTrust(args)
+	if err != nil {
+		return err
+	}
+	defer trustCleanup()
 
 	for index, cmd := range commandsList {
 		execArgs := []string{getJfrogBin()}
@@ -134,6 +144,142 @@ func writePEMFile(path, contents string) error {
 	}
 	logrus.Printf("Successfully wrote pem file at %q\n", path)
 	return nil
+}
+
+var windowsCertificateStoreCommand = func(action, thumbprint, certificatePath string) ([]byte, error) {
+	const script = `$ErrorActionPreference = 'Stop'
+$store = [System.Security.Cryptography.X509Certificates.X509Store]::new(
+  [System.Security.Cryptography.X509Certificates.StoreName]::Root,
+  [System.Security.Cryptography.X509Certificates.StoreLocation]::LocalMachine
+)
+$store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
+try {
+  $matches = $store.Certificates.Find(
+    [System.Security.Cryptography.X509Certificates.X509FindType]::FindByThumbprint,
+    $env:DRONE_ARTIFACTORY_CERT_THUMBPRINT,
+    $false
+  )
+  switch ($env:DRONE_ARTIFACTORY_CERT_ACTION) {
+    'contains' {
+      if ($matches.Count -eq 0) { throw 'certificate not found' }
+    }
+    'add' {
+      $certificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new(
+        $env:DRONE_ARTIFACTORY_CERT_PATH
+      )
+      try { $store.Add($certificate) } finally { $certificate.Dispose() }
+    }
+    'remove' {
+      foreach ($certificate in $matches) { $store.Remove($certificate) }
+    }
+    default { throw "unsupported certificate store action: $env:DRONE_ARTIFACTORY_CERT_ACTION" }
+  }
+} finally {
+  $store.Close()
+}`
+	command := exec.Command("pwsh.exe", "-NoLogo", "-NoProfile", "-NonInteractive", "-Command", script)
+	command.Env = append(
+		os.Environ(),
+		"DRONE_ARTIFACTORY_CERT_ACTION="+action,
+		"DRONE_ARTIFACTORY_CERT_THUMBPRINT="+thumbprint,
+		"DRONE_ARTIFACTORY_CERT_PATH="+certificatePath,
+	)
+	return command.CombinedOutput()
+}
+
+func parsePEMCertificates(contents string) ([]*x509.Certificate, error) {
+	remaining := []byte(contents)
+	var certificates []*x509.Certificate
+	for {
+		remaining = bytes.TrimSpace(remaining)
+		if len(remaining) == 0 {
+			break
+		}
+		block, rest := pem.Decode(remaining)
+		if block == nil {
+			return nil, fmt.Errorf("pem_file_contents contains invalid PEM data")
+		}
+		if block.Type != "CERTIFICATE" {
+			return nil, fmt.Errorf("pem_file_contents contains unsupported PEM block %q", block.Type)
+		}
+		certificate, err := x509.ParseCertificate(block.Bytes)
+		if err != nil {
+			return nil, fmt.Errorf("pem_file_contents contains an invalid certificate: %w", err)
+		}
+		certificates = append(certificates, certificate)
+		remaining = rest
+	}
+	if len(certificates) == 0 {
+		return nil, fmt.Errorf("pem_file_contents does not contain a PEM certificate")
+	}
+	return certificates, nil
+}
+
+func prepareNpmSystemTrust(args Args) (func(), error) {
+	return prepareNpmSystemTrustForOS(args, runtime.GOOS)
+}
+
+func prepareNpmSystemTrustForOS(args Args, goos string) (func(), error) {
+	if goos != "windows" || args.BuildTool != NpmCmd || args.PEMFileContents == "" ||
+		parseBoolOrDefault(false, args.Insecure) {
+		return func() {}, nil
+	}
+	certificates, err := parsePEMCertificates(args.PEMFileContents)
+	if err != nil {
+		return nil, err
+	}
+	tempDirectory, err := os.MkdirTemp("", "drone-artifactory-windows-root-*")
+	if err != nil {
+		return nil, fmt.Errorf("create temporary Windows trust directory: %w", err)
+	}
+	added := make([]string, 0, len(certificates))
+	cleanup := func() {
+		for index := len(added) - 1; index >= 0; index-- {
+			output, removeErr := windowsCertificateStoreCommand("remove", added[index], "")
+			if removeErr != nil {
+				logrus.Warnf(
+					"could not remove temporary npm certificate %s from the Windows local-machine ROOT store: %v: %s",
+					added[index],
+					removeErr,
+					strings.TrimSpace(string(output)),
+				)
+			}
+		}
+		if removeErr := os.RemoveAll(tempDirectory); removeErr != nil {
+			logrus.Warnf("could not remove temporary npm trust directory: %v", removeErr)
+		}
+	}
+
+	for index, certificate := range certificates {
+		// Windows certificate stores identify entries by a SHA-1 thumbprint.
+		// This is an identifier only, not a cryptographic validation decision.
+		sum := sha1.Sum(certificate.Raw) // #nosec G401
+		thumbprint := strings.ToUpper(hex.EncodeToString(sum[:]))
+		if _, lookupErr := windowsCertificateStoreCommand("contains", thumbprint, ""); lookupErr == nil {
+			continue
+		}
+		certificatePath := filepath.Join(tempDirectory, fmt.Sprintf("certificate-%d.cer", index))
+		if err := os.WriteFile(certificatePath, certificate.Raw, 0600); err != nil {
+			cleanup()
+			return nil, fmt.Errorf("write temporary Windows trust certificate: %w", err)
+		}
+		output, err := windowsCertificateStoreCommand("add", thumbprint, certificatePath)
+		if err != nil {
+			cleanup()
+			return nil, fmt.Errorf(
+				"add pem_file_contents certificate %s to the Windows local-machine ROOT store: %w: %s",
+				thumbprint,
+				err,
+				strings.TrimSpace(string(output)),
+			)
+		}
+		added = append(added, thumbprint)
+	}
+	logrus.Printf(
+		"Added %d pem_file_contents certificate(s) to the Windows local-machine ROOT store for npm",
+		len(added),
+	)
+	return cleanup, nil
 }
 
 func serverCertPath(args Args) string {
