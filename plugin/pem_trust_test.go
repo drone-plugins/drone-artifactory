@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"errors"
 	"math/big"
 	"os"
 	"os/exec"
@@ -66,6 +67,109 @@ func TestPinJFrogCLIHomeUsesTheCertificateHome(t *testing.T) {
 	}
 	if !strings.HasPrefix(jfrogCLICertificatePath(), home) {
 		t.Fatalf("certificate path %q is outside the pinned home %q", jfrogCLICertificatePath(), home)
+	}
+}
+
+func TestParsePEMCertificatesRejectsNonCertificateData(t *testing.T) {
+	for name, contents := range map[string]string{
+		"plain text": "not a certificate",
+		"private key": string(pem.EncodeToMemory(&pem.Block{
+			Type:  "PRIVATE KEY",
+			Bytes: []byte("not a key"),
+		})),
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := parsePEMCertificates(contents); err == nil {
+				t.Fatal("expected invalid pem_file_contents to fail")
+			}
+		})
+	}
+}
+
+func TestPrepareNpmSystemTrustImportsOnlyMissingWindowsRoots(t *testing.T) {
+	bundle := testCertificatePEM(t, "Already trusted CA") + testCertificatePEM(t, "Temporary customer CA")
+	originalCommand := windowsCertificateStoreCommand
+	defer func() { windowsCertificateStoreCommand = originalCommand }()
+
+	var calls [][]string
+	var importedPath string
+	lookups := 0
+	windowsCertificateStoreCommand = func(action, thumbprint, certificatePath string) ([]byte, error) {
+		calls = append(calls, []string{action, thumbprint, certificatePath})
+		switch action {
+		case "contains":
+			lookups++
+			if lookups == 1 {
+				return nil, nil
+			}
+			return nil, errors.New("certificate not found")
+		case "add":
+			importedPath = certificatePath
+			if _, err := os.Stat(importedPath); err != nil {
+				t.Fatalf("temporary certificate was not written: %v", err)
+			}
+			return nil, nil
+		case "remove":
+			return nil, nil
+		default:
+			t.Fatalf("unexpected certificate store action: %s", action)
+			return nil, nil
+		}
+	}
+
+	cleanup, err := prepareNpmSystemTrustForOS(
+		Args{BuildTool: NpmCmd, PEMFileContents: bundle},
+		"windows",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if importedPath == "" {
+		t.Fatal("missing certificate was not imported")
+	}
+	cleanup()
+	if _, err := os.Stat(filepath.Dir(importedPath)); !os.IsNotExist(err) {
+		t.Fatalf("temporary trust directory was not removed: %v", err)
+	}
+
+	var addCount, deleteCount int
+	for _, call := range calls {
+		if call[0] == "add" {
+			addCount++
+		}
+		if call[0] == "remove" {
+			deleteCount++
+		}
+	}
+	if addCount != 1 || deleteCount != 1 {
+		t.Fatalf("certificate store add/remove calls = %d/%d, want 1/1: %v", addCount, deleteCount, calls)
+	}
+}
+
+func TestPrepareNpmSystemTrustSkipsOtherPaths(t *testing.T) {
+	originalCommand := windowsCertificateStoreCommand
+	defer func() { windowsCertificateStoreCommand = originalCommand }()
+	windowsCertificateStoreCommand = func(action, thumbprint, certificatePath string) ([]byte, error) {
+		t.Fatalf("Windows certificate store command must not run: %s %s %s", action, thumbprint, certificatePath)
+		return nil, nil
+	}
+	certificate := testCertificatePEM(t, "Customer CA")
+	for name, testCase := range map[string]struct {
+		args Args
+		goos string
+	}{
+		"non-windows": {Args{BuildTool: NpmCmd, PEMFileContents: certificate}, "linux"},
+		"non-npm":     {Args{BuildTool: GradleCmd, PEMFileContents: certificate}, "windows"},
+		"insecure":    {Args{BuildTool: NpmCmd, PEMFileContents: certificate, Insecure: "true"}, "windows"},
+		"no-pem":      {Args{BuildTool: NpmCmd}, "windows"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			cleanup, err := prepareNpmSystemTrustForOS(testCase.args, testCase.goos)
+			if err != nil {
+				t.Fatal(err)
+			}
+			cleanup()
+		})
 	}
 }
 
