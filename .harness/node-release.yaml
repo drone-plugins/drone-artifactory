@@ -22,8 +22,12 @@ pipeline:
             type: CI
             spec:
               cloneCodebase: true
-              platform: {os: Linux, arch: Amd64}
-              runtime: {type: Cloud, spec: {}}
+              platform:
+                os: Linux
+                arch: Amd64
+              runtime:
+                type: Cloud
+                spec: {}
               execution:
                 steps:
                   - step:
@@ -58,6 +62,9 @@ pipeline:
                           dockerfile: docker/Dockerfile.linux.node18.amd64
                           auto_tag: "true"
                           auto_tag_suffix: npm-linux-node18-amd64-r1
+                          base_image_username: <+secrets.getValue("harness0HARUsername")>
+                          base_image_password: <+secrets.getValue("harness0HARPAT")>
+                          base_image_registry: harness0.harness.io/oci/docker_artifacts
                       when:
                         stageStatus: Success
                         condition: <+codebase.build.type> == "tag"
@@ -68,7 +75,8 @@ pipeline:
                       spec:
                         connectorRef: Plugins_Docker_Hub_Connector
                         repo: plugins/artifactory
-                        tags: [npm-linux-node18-amd64]
+                        tags:
+                          - npm-linux-node18-amd64
                         dockerfile: docker/Dockerfile.linux.node18.amd64
                         context: .
                         caching: false
@@ -89,6 +97,9 @@ pipeline:
                           dockerfile: docker/Dockerfile.linux.node22.amd64
                           auto_tag: "true"
                           auto_tag_suffix: npm-linux-node22-amd64-r1
+                          base_image_username: <+secrets.getValue("harness0HARUsername")>
+                          base_image_password: <+secrets.getValue("harness0HARPAT")>
+                          base_image_registry: harness0.harness.io/oci/docker_artifacts
                       when:
                         stageStatus: Success
                         condition: <+codebase.build.type> == "tag"
@@ -99,7 +110,8 @@ pipeline:
                       spec:
                         connectorRef: Plugins_Docker_Hub_Connector
                         repo: plugins/artifactory
-                        tags: [npm-linux-node22-amd64]
+                        tags:
+                          - npm-linux-node22-amd64
                         dockerfile: docker/Dockerfile.linux.node22.amd64
                         context: .
                         caching: false
@@ -120,6 +132,9 @@ pipeline:
                           dockerfile: docker/Dockerfile.linux.node24.amd64
                           auto_tag: "true"
                           auto_tag_suffix: npm-linux-node24-amd64-r1
+                          base_image_username: <+secrets.getValue("harness0HARUsername")>
+                          base_image_password: <+secrets.getValue("harness0HARPAT")>
+                          base_image_registry: harness0.harness.io/oci/docker_artifacts
                       when:
                         stageStatus: Success
                         condition: <+codebase.build.type> == "tag"
@@ -130,7 +145,8 @@ pipeline:
                       spec:
                         connectorRef: Plugins_Docker_Hub_Connector
                         repo: plugins/artifactory
-                        tags: [npm-linux-node24-amd64]
+                        tags:
+                          - npm-linux-node24-amd64
                         dockerfile: docker/Dockerfile.linux.node24.amd64
                         context: .
                         caching: false
@@ -143,8 +159,12 @@ pipeline:
             type: CI
             spec:
               cloneCodebase: true
-              platform: {os: Linux, arch: Arm64}
-              runtime: {type: Cloud, spec: {}}
+              platform:
+                os: Linux
+                arch: Arm64
+              runtime:
+                type: Cloud
+                spec: {}
               execution:
                 steps:
                   - step:
@@ -179,6 +199,9 @@ pipeline:
                           dockerfile: docker/Dockerfile.linux.node18.arm64
                           auto_tag: "true"
                           auto_tag_suffix: npm-linux-node18-arm64-r1
+                          base_image_username: <+secrets.getValue("harness0HARUsername")>
+                          base_image_password: <+secrets.getValue("harness0HARPAT")>
+                          base_image_registry: harness0.harness.io/oci/docker_artifacts
                       when:
                         stageStatus: Success
                         condition: <+codebase.build.type> == "tag"
@@ -189,7 +212,8 @@ pipeline:
                       spec:
                         connectorRef: Plugins_Docker_Hub_Connector
                         repo: plugins/artifactory
-                        tags: [npm-linux-node18-arm64]
+                        tags:
+                          - npm-linux-node18-arm64
                         dockerfile: docker/Dockerfile.linux.node18.arm64
                         context: .
                         caching: false
@@ -210,6 +234,9 @@ pipeline:
                           dockerfile: docker/Dockerfile.linux.node22.arm64
                           auto_tag: "true"
                           auto_tag_suffix: npm-linux-node22-arm64-r1
+                          base_image_username: <+secrets.getValue("harness0HARUsername")>
+                          base_image_password: <+secrets.getValue("harness0HARPAT")>
+                          base_image_registry: harness0.harness.io/oci/docker_artifacts
                       when:
                         stageStatus: Success
                         condition: <+codebase.build.type> == "tag"
@@ -220,7 +247,8 @@ pipeline:
                       spec:
                         connectorRef: Plugins_Docker_Hub_Connector
                         repo: plugins/artifactory
-                        tags: [npm-linux-node22-arm64]
+                        tags:
+                          - npm-linux-node22-arm64
                         dockerfile: docker/Dockerfile.linux.node22.arm64
                         context: .
                         caching: false
@@ -241,6 +269,9 @@ pipeline:
                           dockerfile: docker/Dockerfile.linux.node24.arm64
                           auto_tag: "true"
                           auto_tag_suffix: npm-linux-node24-arm64-r1
+                          base_image_username: <+secrets.getValue("harness0HARUsername")>
+                          base_image_password: <+secrets.getValue("harness0HARPAT")>
+                          base_image_registry: harness0.harness.io/oci/docker_artifacts
                       when:
                         stageStatus: Success
                         condition: <+codebase.build.type> == "tag"
@@ -251,7 +282,8 @@ pipeline:
                       spec:
                         connectorRef: Plugins_Docker_Hub_Connector
                         repo: plugins/artifactory
-                        tags: [npm-linux-node24-arm64]
+                        tags:
+                          - npm-linux-node24-arm64
                         dockerfile: docker/Dockerfile.linux.node24.arm64
                         context: .
                         caching: false
@@ -268,7 +300,9 @@ pipeline:
                 type: VM
                 spec:
                   type: Pool
-                  spec: {poolName: windows-2019, os: Windows}
+                  spec:
+                    poolName: windows-2019
+                    os: Windows
               execution:
                 steps:
                   - step:
@@ -318,7 +352,8 @@ pipeline:
                       spec:
                         connectorRef: Plugins_Docker_Hub_Connector
                         repo: plugins/artifactory
-                        tags: [npm-windows-node18-nano-ltsc2019-amd64]
+                        tags:
+                          - npm-windows-node18-nano-ltsc2019-amd64
                         dockerfile: docker/Dockerfile.windows.node18.amd64.ltsc2019
                         context: .
                         caching: false
@@ -351,7 +386,8 @@ pipeline:
                       spec:
                         connectorRef: Plugins_Docker_Hub_Connector
                         repo: plugins/artifactory
-                        tags: [npm-windows-node22-nano-ltsc2019-amd64]
+                        tags:
+                          - npm-windows-node22-nano-ltsc2019-amd64
                         dockerfile: docker/Dockerfile.windows.node22.amd64.ltsc2019
                         context: .
                         caching: false
@@ -384,22 +420,28 @@ pipeline:
                       spec:
                         connectorRef: Plugins_Docker_Hub_Connector
                         repo: plugins/artifactory
-                        tags: [npm-windows-node24-nano-ltsc2019-amd64]
+                        tags:
+                          - npm-windows-node24-nano-ltsc2019-amd64
                         dockerfile: docker/Dockerfile.windows.node24.amd64.ltsc2019
                         context: .
                         caching: false
                       when:
                         stageStatus: Success
                         condition: <+codebase.build.type> == "branch"
-            delegateSelectors: [windows-vm]
+            delegateSelectors:
+              - windows-vm
         - stage:
             name: npm-windows-ltsc2022
             identifier: npm_windows_ltsc2022
             type: CI
             spec:
               cloneCodebase: true
-              platform: {os: Windows, arch: Amd64}
-              runtime: {type: Cloud, spec: {}}
+              platform:
+                os: Windows
+                arch: Amd64
+              runtime:
+                type: Cloud
+                spec: {}
               execution:
                 steps:
                   - step:
@@ -449,7 +491,8 @@ pipeline:
                       spec:
                         connectorRef: Plugins_Docker_Hub_Connector
                         repo: plugins/artifactory
-                        tags: [npm-windows-node18-nano-ltsc2022-amd64]
+                        tags:
+                          - npm-windows-node18-nano-ltsc2022-amd64
                         dockerfile: docker/Dockerfile.windows.node18.amd64.ltsc2022
                         context: .
                         caching: false
@@ -482,7 +525,8 @@ pipeline:
                       spec:
                         connectorRef: Plugins_Docker_Hub_Connector
                         repo: plugins/artifactory
-                        tags: [npm-windows-node22-nano-ltsc2022-amd64]
+                        tags:
+                          - npm-windows-node22-nano-ltsc2022-amd64
                         dockerfile: docker/Dockerfile.windows.node22.amd64.ltsc2022
                         context: .
                         caching: false
@@ -515,7 +559,8 @@ pipeline:
                       spec:
                         connectorRef: Plugins_Docker_Hub_Connector
                         repo: plugins/artifactory
-                        tags: [npm-windows-node24-nano-ltsc2022-amd64]
+                        tags:
+                          - npm-windows-node24-nano-ltsc2022-amd64
                         dockerfile: docker/Dockerfile.windows.node24.amd64.ltsc2022
                         context: .
                         caching: false
@@ -532,7 +577,9 @@ pipeline:
                 type: VM
                 spec:
                   type: Pool
-                  spec: {poolName: windows-2025, os: Windows}
+                  spec:
+                    poolName: windows-2025
+                    os: Windows
               execution:
                 steps:
                   - step:
@@ -582,7 +629,8 @@ pipeline:
                       spec:
                         connectorRef: Plugins_Docker_Hub_Connector
                         repo: plugins/artifactory
-                        tags: [npm-windows-node18-nano-ltsc2025-amd64]
+                        tags:
+                          - npm-windows-node18-nano-ltsc2025-amd64
                         dockerfile: docker/Dockerfile.windows.node18.amd64.ltsc2025
                         context: .
                         caching: false
@@ -615,7 +663,8 @@ pipeline:
                       spec:
                         connectorRef: Plugins_Docker_Hub_Connector
                         repo: plugins/artifactory
-                        tags: [npm-windows-node22-nano-ltsc2025-amd64]
+                        tags:
+                          - npm-windows-node22-nano-ltsc2025-amd64
                         dockerfile: docker/Dockerfile.windows.node22.amd64.ltsc2025
                         context: .
                         caching: false
@@ -648,22 +697,28 @@ pipeline:
                       spec:
                         connectorRef: Plugins_Docker_Hub_Connector
                         repo: plugins/artifactory
-                        tags: [npm-windows-node24-nano-ltsc2025-amd64]
+                        tags:
+                          - npm-windows-node24-nano-ltsc2025-amd64
                         dockerfile: docker/Dockerfile.windows.node24.amd64.ltsc2025
                         context: .
                         caching: false
                       when:
                         stageStatus: Success
                         condition: <+codebase.build.type> == "branch"
-            delegateSelectors: [windows-vm]
+            delegateSelectors:
+              - windows-vm
     - stage:
         name: npm-manifests
         identifier: npm_manifests
         type: CI
         spec:
           cloneCodebase: true
-          platform: {os: Linux, arch: Amd64}
-          runtime: {type: Cloud, spec: {}}
+          platform:
+            os: Linux
+            arch: Amd64
+          runtime:
+            type: Cloud
+            spec: {}
           execution:
             steps:
               - step:
