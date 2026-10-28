@@ -35,6 +35,12 @@ RUN New-Item -ItemType Directory -Force C:/downloads,C:/tools/jdk,C:/tools/maven
     certutil -generateSSTFromWU C:/certificates/ca-certificates.sst | Out-Null; `
     Remove-Item C:/downloads/*.zip -Force
 
+# Remove the affected roots present in this pinned Temurin store (CVE-2026-114820).
+RUN foreach ($Alias in @('cn_emsign_root_ca__g1,o_emudhra_technologies_limited,ou_emsign_pki,c_in [jdk]', 'cn_emsign_ecc_root_ca__g3,o_emudhra_technologies_limited,ou_emsign_pki,c_in [jdk]')) { `
+    & 'C:/tools/jdk/jdk-17.0.19+10/bin/keytool.exe' -delete -cacerts -storepass changeit -noprompt -alias $Alias; `
+    if ($LASTEXITCODE -ne 0) { throw "Unable to remove affected Java root: $Alias" }; `
+    }
+
 FROM ${RUNTIME_IMAGE}
 USER ContainerAdministrator
 COPY --from=builder C:/PowerShell C:/PowerShell

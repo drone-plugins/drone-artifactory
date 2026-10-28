@@ -35,8 +35,8 @@ pipeline:
                       name: Build verified plugin binary
                       identifier: build_verified_plugin_binary
                       spec:
-                        connectorRef: Plugins_Docker_Hub_Connector
-                        image: golang:1.25.13-alpine
+                        connectorRef: HHI_Public_Images
+                        image: harness0.harness.io/oci/docker_artifacts/hhi/go:1.26.10@sha256:718fddf012b3a305e936ae9964e5a642036bcb7b4c6c0786e2f78f238d637db8
                         shell: Sh
                         command: |
                           set -eu
@@ -56,6 +56,11 @@ pipeline:
                         connectorRef: Plugins_Docker_Hub_Connector
                         image: plugins/docker:21.3.0
                         settings:
+                          pull_image: true
+                          no_cache: true
+                          base_image_registry: harness0.harness.io
+                          base_image_username: <+secrets.getValue("harness0HARUsername")>
+                          base_image_password: <+secrets.getValue("harness0HARPAT")>
                           username: drone
                           password: <+secrets.getValue("Plugins_Docker_Hub_Pat")>
                           repo: plugins/artifactory
@@ -73,6 +78,12 @@ pipeline:
                       name: Publish moving npm Node 18
                       identifier: publish_moving_npm_node18
                       spec:
+                        envVariables:
+                          PLUGIN_NO_CACHE: "true"
+                          PLUGIN_PULL_IMAGE: "true"
+                          PLUGIN_ENABLE_CACHE: "false"
+                        baseImageConnectorRefs:
+                          - HHI_Public_Images
                         connectorRef: Plugins_Docker_Hub_Connector
                         repo: plugins/artifactory
                         tags:
@@ -91,6 +102,11 @@ pipeline:
                         connectorRef: Plugins_Docker_Hub_Connector
                         image: plugins/docker:21.3.0
                         settings:
+                          pull_image: true
+                          no_cache: true
+                          base_image_registry: harness0.harness.io
+                          base_image_username: <+secrets.getValue("harness0HARUsername")>
+                          base_image_password: <+secrets.getValue("harness0HARPAT")>
                           username: drone
                           password: <+secrets.getValue("Plugins_Docker_Hub_Pat")>
                           repo: plugins/artifactory
@@ -108,6 +124,12 @@ pipeline:
                       name: Publish moving npm Node 22
                       identifier: publish_moving_npm_node22
                       spec:
+                        envVariables:
+                          PLUGIN_NO_CACHE: "true"
+                          PLUGIN_PULL_IMAGE: "true"
+                          PLUGIN_ENABLE_CACHE: "false"
+                        baseImageConnectorRefs:
+                          - HHI_Public_Images
                         connectorRef: Plugins_Docker_Hub_Connector
                         repo: plugins/artifactory
                         tags:
@@ -126,6 +148,11 @@ pipeline:
                         connectorRef: Plugins_Docker_Hub_Connector
                         image: plugins/docker:21.3.0
                         settings:
+                          pull_image: true
+                          no_cache: true
+                          base_image_registry: harness0.harness.io
+                          base_image_username: <+secrets.getValue("harness0HARUsername")>
+                          base_image_password: <+secrets.getValue("harness0HARPAT")>
                           username: drone
                           password: <+secrets.getValue("Plugins_Docker_Hub_Pat")>
                           repo: plugins/artifactory
@@ -143,6 +170,12 @@ pipeline:
                       name: Publish moving npm Node 24
                       identifier: publish_moving_npm_node24
                       spec:
+                        envVariables:
+                          PLUGIN_NO_CACHE: "true"
+                          PLUGIN_PULL_IMAGE: "true"
+                          PLUGIN_ENABLE_CACHE: "false"
+                        baseImageConnectorRefs:
+                          - HHI_Public_Images
                         connectorRef: Plugins_Docker_Hub_Connector
                         repo: plugins/artifactory
                         tags:
@@ -172,8 +205,8 @@ pipeline:
                       name: Build verified plugin binary
                       identifier: build_verified_plugin_binary
                       spec:
-                        connectorRef: Plugins_Docker_Hub_Connector
-                        image: golang:1.25.13-alpine
+                        connectorRef: HHI_Public_Images
+                        image: harness0.harness.io/oci/docker_artifacts/hhi/go:1.26.10@sha256:718fddf012b3a305e936ae9964e5a642036bcb7b4c6c0786e2f78f238d637db8
                         shell: Sh
                         command: |
                           set -eu
@@ -193,6 +226,11 @@ pipeline:
                         connectorRef: Plugins_Docker_Hub_Connector
                         image: plugins/docker:21.3.0
                         settings:
+                          pull_image: true
+                          no_cache: true
+                          base_image_registry: harness0.harness.io
+                          base_image_username: <+secrets.getValue("harness0HARUsername")>
+                          base_image_password: <+secrets.getValue("harness0HARPAT")>
                           username: drone
                           password: <+secrets.getValue("Plugins_Docker_Hub_Pat")>
                           repo: plugins/artifactory
@@ -210,6 +248,12 @@ pipeline:
                       name: Publish moving npm Node 18
                       identifier: publish_moving_npm_node18
                       spec:
+                        envVariables:
+                          PLUGIN_NO_CACHE: "true"
+                          PLUGIN_PULL_IMAGE: "true"
+                          PLUGIN_ENABLE_CACHE: "false"
+                        baseImageConnectorRefs:
+                          - HHI_Public_Images
                         connectorRef: Plugins_Docker_Hub_Connector
                         repo: plugins/artifactory
                         tags:
@@ -228,6 +272,11 @@ pipeline:
                         connectorRef: Plugins_Docker_Hub_Connector
                         image: plugins/docker:21.3.0
                         settings:
+                          pull_image: true
+                          no_cache: true
+                          base_image_registry: harness0.harness.io
+                          base_image_username: <+secrets.getValue("harness0HARUsername")>
+                          base_image_password: <+secrets.getValue("harness0HARPAT")>
                           username: drone
                           password: <+secrets.getValue("Plugins_Docker_Hub_Pat")>
                           repo: plugins/artifactory
@@ -245,6 +294,12 @@ pipeline:
                       name: Publish moving npm Node 22
                       identifier: publish_moving_npm_node22
                       spec:
+                        envVariables:
+                          PLUGIN_NO_CACHE: "true"
+                          PLUGIN_PULL_IMAGE: "true"
+                          PLUGIN_ENABLE_CACHE: "false"
+                        baseImageConnectorRefs:
+                          - HHI_Public_Images
                         connectorRef: Plugins_Docker_Hub_Connector
                         repo: plugins/artifactory
                         tags:
@@ -263,6 +318,11 @@ pipeline:
                         connectorRef: Plugins_Docker_Hub_Connector
                         image: plugins/docker:21.3.0
                         settings:
+                          pull_image: true
+                          no_cache: true
+                          base_image_registry: harness0.harness.io
+                          base_image_username: <+secrets.getValue("harness0HARUsername")>
+                          base_image_password: <+secrets.getValue("harness0HARPAT")>
                           username: drone
                           password: <+secrets.getValue("Plugins_Docker_Hub_Pat")>
                           repo: plugins/artifactory
@@ -280,6 +340,12 @@ pipeline:
                       name: Publish moving npm Node 24
                       identifier: publish_moving_npm_node24
                       spec:
+                        envVariables:
+                          PLUGIN_NO_CACHE: "true"
+                          PLUGIN_PULL_IMAGE: "true"
+                          PLUGIN_ENABLE_CACHE: "false"
+                        baseImageConnectorRefs:
+                          - HHI_Public_Images
                         connectorRef: Plugins_Docker_Hub_Connector
                         repo: plugins/artifactory
                         tags:
@@ -313,6 +379,8 @@ pipeline:
                       spec:
                         connectorRef: Plugins_Docker_Hub_Connector
                         image: golang:1.24-windowsservercore-1809
+                        envVariables:
+                          GOTOOLCHAIN: go1.26.10
                         shell: Sh
                         command: |
                           set -eu
@@ -335,6 +403,8 @@ pipeline:
                         connectorRef: Plugins_Docker_Hub_Connector
                         image: plugins/docker:21.3.0
                         settings:
+                          pull_image: true
+                          no_cache: true
                           username: drone
                           password: <+secrets.getValue("Plugins_Docker_Hub_Pat")>
                           repo: plugins/artifactory
@@ -350,6 +420,10 @@ pipeline:
                       identifier: publish_moving_npm_node18
                       timeout: 60m
                       spec:
+                        envVariables:
+                          PLUGIN_NO_CACHE: "true"
+                          PLUGIN_PULL_IMAGE: "true"
+                          PLUGIN_ENABLE_CACHE: "false"
                         connectorRef: Plugins_Docker_Hub_Connector
                         repo: plugins/artifactory
                         tags:
@@ -369,6 +443,8 @@ pipeline:
                         connectorRef: Plugins_Docker_Hub_Connector
                         image: plugins/docker:21.3.0
                         settings:
+                          pull_image: true
+                          no_cache: true
                           username: drone
                           password: <+secrets.getValue("Plugins_Docker_Hub_Pat")>
                           repo: plugins/artifactory
@@ -384,6 +460,10 @@ pipeline:
                       identifier: publish_moving_npm_node22
                       timeout: 60m
                       spec:
+                        envVariables:
+                          PLUGIN_NO_CACHE: "true"
+                          PLUGIN_PULL_IMAGE: "true"
+                          PLUGIN_ENABLE_CACHE: "false"
                         connectorRef: Plugins_Docker_Hub_Connector
                         repo: plugins/artifactory
                         tags:
@@ -403,6 +483,8 @@ pipeline:
                         connectorRef: Plugins_Docker_Hub_Connector
                         image: plugins/docker:21.3.0
                         settings:
+                          pull_image: true
+                          no_cache: true
                           username: drone
                           password: <+secrets.getValue("Plugins_Docker_Hub_Pat")>
                           repo: plugins/artifactory
@@ -418,6 +500,10 @@ pipeline:
                       identifier: publish_moving_npm_node24
                       timeout: 60m
                       spec:
+                        envVariables:
+                          PLUGIN_NO_CACHE: "true"
+                          PLUGIN_PULL_IMAGE: "true"
+                          PLUGIN_ENABLE_CACHE: "false"
                         connectorRef: Plugins_Docker_Hub_Connector
                         repo: plugins/artifactory
                         tags:
@@ -452,6 +538,8 @@ pipeline:
                       spec:
                         connectorRef: Plugins_Docker_Hub_Connector
                         image: golang:1.25.12
+                        envVariables:
+                          GOTOOLCHAIN: go1.26.10
                         shell: Sh
                         command: |
                           set -eu
@@ -474,6 +562,8 @@ pipeline:
                         connectorRef: Plugins_Docker_Hub_Connector
                         image: plugins/docker:21.3.0
                         settings:
+                          pull_image: true
+                          no_cache: true
                           username: drone
                           password: <+secrets.getValue("Plugins_Docker_Hub_Pat")>
                           repo: plugins/artifactory
@@ -489,6 +579,10 @@ pipeline:
                       identifier: publish_moving_npm_node18
                       timeout: 60m
                       spec:
+                        envVariables:
+                          PLUGIN_NO_CACHE: "true"
+                          PLUGIN_PULL_IMAGE: "true"
+                          PLUGIN_ENABLE_CACHE: "false"
                         connectorRef: Plugins_Docker_Hub_Connector
                         repo: plugins/artifactory
                         tags:
@@ -508,6 +602,8 @@ pipeline:
                         connectorRef: Plugins_Docker_Hub_Connector
                         image: plugins/docker:21.3.0
                         settings:
+                          pull_image: true
+                          no_cache: true
                           username: drone
                           password: <+secrets.getValue("Plugins_Docker_Hub_Pat")>
                           repo: plugins/artifactory
@@ -523,6 +619,10 @@ pipeline:
                       identifier: publish_moving_npm_node22
                       timeout: 60m
                       spec:
+                        envVariables:
+                          PLUGIN_NO_CACHE: "true"
+                          PLUGIN_PULL_IMAGE: "true"
+                          PLUGIN_ENABLE_CACHE: "false"
                         connectorRef: Plugins_Docker_Hub_Connector
                         repo: plugins/artifactory
                         tags:
@@ -542,6 +642,8 @@ pipeline:
                         connectorRef: Plugins_Docker_Hub_Connector
                         image: plugins/docker:21.3.0
                         settings:
+                          pull_image: true
+                          no_cache: true
                           username: drone
                           password: <+secrets.getValue("Plugins_Docker_Hub_Pat")>
                           repo: plugins/artifactory
@@ -557,6 +659,10 @@ pipeline:
                       identifier: publish_moving_npm_node24
                       timeout: 60m
                       spec:
+                        envVariables:
+                          PLUGIN_NO_CACHE: "true"
+                          PLUGIN_PULL_IMAGE: "true"
+                          PLUGIN_ENABLE_CACHE: "false"
                         connectorRef: Plugins_Docker_Hub_Connector
                         repo: plugins/artifactory
                         tags:
@@ -590,6 +696,8 @@ pipeline:
                       spec:
                         connectorRef: Plugins_Docker_Hub_Connector
                         image: golang:1.25.12
+                        envVariables:
+                          GOTOOLCHAIN: go1.26.10
                         shell: Sh
                         command: |
                           set -eu
@@ -612,6 +720,8 @@ pipeline:
                         connectorRef: Plugins_Docker_Hub_Connector
                         image: plugins/docker:21.3.0
                         settings:
+                          pull_image: true
+                          no_cache: true
                           username: drone
                           password: <+secrets.getValue("Plugins_Docker_Hub_Pat")>
                           repo: plugins/artifactory
@@ -627,6 +737,10 @@ pipeline:
                       identifier: publish_moving_npm_node18
                       timeout: 60m
                       spec:
+                        envVariables:
+                          PLUGIN_NO_CACHE: "true"
+                          PLUGIN_PULL_IMAGE: "true"
+                          PLUGIN_ENABLE_CACHE: "false"
                         connectorRef: Plugins_Docker_Hub_Connector
                         repo: plugins/artifactory
                         tags:
@@ -646,6 +760,8 @@ pipeline:
                         connectorRef: Plugins_Docker_Hub_Connector
                         image: plugins/docker:21.3.0
                         settings:
+                          pull_image: true
+                          no_cache: true
                           username: drone
                           password: <+secrets.getValue("Plugins_Docker_Hub_Pat")>
                           repo: plugins/artifactory
@@ -661,6 +777,10 @@ pipeline:
                       identifier: publish_moving_npm_node22
                       timeout: 60m
                       spec:
+                        envVariables:
+                          PLUGIN_NO_CACHE: "true"
+                          PLUGIN_PULL_IMAGE: "true"
+                          PLUGIN_ENABLE_CACHE: "false"
                         connectorRef: Plugins_Docker_Hub_Connector
                         repo: plugins/artifactory
                         tags:
@@ -680,6 +800,8 @@ pipeline:
                         connectorRef: Plugins_Docker_Hub_Connector
                         image: plugins/docker:21.3.0
                         settings:
+                          pull_image: true
+                          no_cache: true
                           username: drone
                           password: <+secrets.getValue("Plugins_Docker_Hub_Pat")>
                           repo: plugins/artifactory
@@ -695,6 +817,10 @@ pipeline:
                       identifier: publish_moving_npm_node24
                       timeout: 60m
                       spec:
+                        envVariables:
+                          PLUGIN_NO_CACHE: "true"
+                          PLUGIN_PULL_IMAGE: "true"
+                          PLUGIN_ENABLE_CACHE: "false"
                         connectorRef: Plugins_Docker_Hub_Connector
                         repo: plugins/artifactory
                         tags:
@@ -726,8 +852,8 @@ pipeline:
                   name: Verify release source
                   identifier: verify_release_source
                   spec:
-                    connectorRef: Plugins_Docker_Hub_Connector
-                    image: alpine:3.21
+                    connectorRef: HHI_Public_Images
+                    image: harness0.harness.io/oci/docker_artifacts/hhi/harnessos-alpine:1@sha256:290a37c85b4284d2c11fa0778e5da79643d912a1f5a57d6f701b77644503b7e7
                     shell: Sh
                     command: |
                       set -eu
