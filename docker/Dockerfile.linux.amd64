@@ -32,8 +32,8 @@ RUN chmod 0755 /etc/ca-certificates/update.d/zz-emudhra-java \
     && update-ca-certificates
 
 # Install Gradle
-RUN curl -fsSL https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip -o /tmp/gradle.zip \
-    && mkdir /opt/gradle \
+RUN mkdir -p /usr/local/bin /opt/gradle \
+    && curl -fsSL https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip -o /tmp/gradle.zip \
     && unzip /tmp/gradle.zip -d /opt/gradle \
     && rm /tmp/gradle.zip \
     && ln -s /opt/gradle/gradle-${GRADLE_VERSION}/bin/gradle /usr/local/bin/gradle
