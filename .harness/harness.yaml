@@ -101,9 +101,6 @@ pipeline:
                           dockerfile: docker/Dockerfile.linux.amd64
                           auto_tag: "true"
                           auto_tag_suffix: linux-amd64
-                          base_image_username: <+secrets.getValue("harness0HARUsername")>
-                          base_image_password: <+secrets.getValue("harness0HARPAT")>
-                          base_image_registry: harness0.harness.io/oci/docker_artifacts
                       when:
                         stageStatus: Success
                         condition: <+codebase.build.type> == "tag"
@@ -190,9 +187,6 @@ pipeline:
                           dockerfile: docker/Dockerfile.linux.arm64
                           auto_tag: "true"
                           auto_tag_suffix: linux-arm64
-                          base_image_username: <+secrets.getValue("harness0HARUsername")>
-                          base_image_password: <+secrets.getValue("harness0HARPAT")>
-                          base_image_registry: harness0.harness.io/oci/docker_artifacts
                       when:
                         stageStatus: Success
                         condition: <+codebase.build.type> == "tag"
