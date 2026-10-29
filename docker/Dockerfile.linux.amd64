@@ -21,7 +21,6 @@ RUN apk update && apk upgrade --no-cache \
     'java-cacerts>=20261020-r0' \
     maven \
     curl \
-    docker \
     docker-cli \
     && rm -f /usr/libexec/docker/cli-plugins/docker-buildx \
     && rm -rf /var/cache/apk/*
@@ -48,7 +47,7 @@ RUN curl -fsSL https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson
 
 
 # Install JFrog CLI (CVE-2026-39821: bumped to 2.115.0 for golang.org/x/net/idna improper authentication fix)
-RUN curl -fL https://getcli.jfrog.io/v2-jf | sh /dev/stdin 2.115.0
+RUN curl -fL https://getcli.jfrog.io/v2-jf | sh /dev/stdin 2.129.0
 RUN mv ./jf /usr/local/bin/jf
 RUN chmod +x /usr/local/bin/jf
 

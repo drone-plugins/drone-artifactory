@@ -17,8 +17,8 @@ RUN rm -f /usr/share/ca-certificates/mozilla/AAA_Certificate_Services.crt /usr/s
     && printf '%s\n' '!mozilla/AAA_Certificate_Services.crt' '!mozilla/Comodo_AAA_Services_root.crt' '!mozilla/emSign_ECC_Root_CA_-_G3.crt' >> /etc/ca-certificates.conf \
     && update-ca-certificates --fresh
 
-RUN curl -fsSL 'https://releases.jfrog.io/artifactory/jfrog-cli/v2/2.115.0/jfrog-cli-linux-arm64/jfrog' -o /usr/local/bin/jfrog \
-    && echo '669457e9948dcf4aafe01ce316e8ff24e9e339124a5c9ba0d8782e34ecce2f4d  /usr/local/bin/jfrog' | sha256sum -c - \
+RUN curl -fsSL 'https://releases.jfrog.io/artifactory/jfrog-cli/v2/2.129.0/jfrog-cli-linux-arm64/jfrog' -o /usr/local/bin/jfrog \
+    && echo 'affa031c592fa4f587794dbfd7d4ed5e47c9b91ef15a494015a6fecc0a5bc43a  /usr/local/bin/jfrog' | sha256sum -c - \
     && chmod 0755 /usr/local/bin/jfrog \
     && ln -s /usr/local/bin/jfrog /usr/local/bin/jf \
     && for spec in \

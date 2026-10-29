@@ -6,8 +6,8 @@ FROM ${BUILDER_IMAGE} AS builder
 SHELL ["powershell", "-NoLogo", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
 RUN New-Item -ItemType Directory -Force C:/downloads,C:/tools/jdk,C:/tools/maven,C:/tools/gradle,C:/PowerShell,C:/certificates | Out-Null; `
-    Invoke-WebRequest -UseBasicParsing -Uri 'https://releases.jfrog.io/artifactory/jfrog-cli/v2/2.115.0/jfrog-cli-windows-amd64/jfrog.exe' -OutFile 'C:/downloads/jfrog.exe'; `
-    if ((Get-FileHash -Algorithm SHA256 'C:/downloads/jfrog.exe').Hash.ToLowerInvariant() -ne 'c3997e333dd1d70defe77783dc5ee7fcb5bd537ecb45e57e8b3fb6e2efa41d6c') { throw 'JFrog CLI SHA-256 mismatch' }; `
+    Invoke-WebRequest -UseBasicParsing -Uri 'https://releases.jfrog.io/artifactory/jfrog-cli/v2/2.129.0/jfrog-cli-windows-amd64/jfrog.exe' -OutFile 'C:/downloads/jfrog.exe'; `
+    if ((Get-FileHash -Algorithm SHA256 'C:/downloads/jfrog.exe').Hash.ToLowerInvariant() -ne 'f8fe4d2147369a8d5ecc2ec91cffffefb644999ccc21192d3a22b17c205f7ba1') { throw 'JFrog CLI SHA-256 mismatch' }; `
     Invoke-WebRequest -UseBasicParsing -Uri 'https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.19%2B10/OpenJDK17U-jdk_x64_windows_hotspot_17.0.19_10.zip' -OutFile 'C:/downloads/jdk.zip'; `
     if ((Get-FileHash -Algorithm SHA256 'C:/downloads/jdk.zip').Hash.ToLowerInvariant() -ne 'b5b235c48adf6a081874b812c630b9f4b5f637b7a5ed18b9174d08a41ec4c235') { throw 'Temurin SHA-256 mismatch' }; `
     Invoke-WebRequest -UseBasicParsing -Uri 'https://repo1.maven.org/maven2/org/apache/maven/apache-maven/3.9.11/apache-maven-3.9.11-bin.zip' -OutFile 'C:/downloads/maven.zip'; `
