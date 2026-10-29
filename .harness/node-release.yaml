@@ -67,9 +67,6 @@ pipeline:
                           dockerfile: docker/Dockerfile.linux.node18.amd64
                           auto_tag: "true"
                           auto_tag_suffix: npm-linux-node18-amd64-r1
-                          base_image_username: <+secrets.getValue("harness0HARUsername")>
-                          base_image_password: <+secrets.getValue("harness0HARPAT")>
-                          base_image_registry: harness0.harness.io/oci/docker_artifacts
                       when:
                         stageStatus: Success
                         condition: <+codebase.build.type> == "tag"
@@ -113,9 +110,6 @@ pipeline:
                           dockerfile: docker/Dockerfile.linux.node22.amd64
                           auto_tag: "true"
                           auto_tag_suffix: npm-linux-node22-amd64-r1
-                          base_image_username: <+secrets.getValue("harness0HARUsername")>
-                          base_image_password: <+secrets.getValue("harness0HARPAT")>
-                          base_image_registry: harness0.harness.io/oci/docker_artifacts
                       when:
                         stageStatus: Success
                         condition: <+codebase.build.type> == "tag"
@@ -159,9 +153,6 @@ pipeline:
                           dockerfile: docker/Dockerfile.linux.node24.amd64
                           auto_tag: "true"
                           auto_tag_suffix: npm-linux-node24-amd64-r1
-                          base_image_username: <+secrets.getValue("harness0HARUsername")>
-                          base_image_password: <+secrets.getValue("harness0HARPAT")>
-                          base_image_registry: harness0.harness.io/oci/docker_artifacts
                       when:
                         stageStatus: Success
                         condition: <+codebase.build.type> == "tag"
@@ -237,9 +228,6 @@ pipeline:
                           dockerfile: docker/Dockerfile.linux.node18.arm64
                           auto_tag: "true"
                           auto_tag_suffix: npm-linux-node18-arm64-r1
-                          base_image_username: <+secrets.getValue("harness0HARUsername")>
-                          base_image_password: <+secrets.getValue("harness0HARPAT")>
-                          base_image_registry: harness0.harness.io/oci/docker_artifacts
                       when:
                         stageStatus: Success
                         condition: <+codebase.build.type> == "tag"
@@ -283,9 +271,6 @@ pipeline:
                           dockerfile: docker/Dockerfile.linux.node22.arm64
                           auto_tag: "true"
                           auto_tag_suffix: npm-linux-node22-arm64-r1
-                          base_image_username: <+secrets.getValue("harness0HARUsername")>
-                          base_image_password: <+secrets.getValue("harness0HARPAT")>
-                          base_image_registry: harness0.harness.io/oci/docker_artifacts
                       when:
                         stageStatus: Success
                         condition: <+codebase.build.type> == "tag"
@@ -329,9 +314,6 @@ pipeline:
                           dockerfile: docker/Dockerfile.linux.node24.arm64
                           auto_tag: "true"
                           auto_tag_suffix: npm-linux-node24-arm64-r1
-                          base_image_username: <+secrets.getValue("harness0HARUsername")>
-                          base_image_password: <+secrets.getValue("harness0HARPAT")>
-                          base_image_registry: harness0.harness.io/oci/docker_artifacts
                       when:
                         stageStatus: Success
                         condition: <+codebase.build.type> == "tag"
