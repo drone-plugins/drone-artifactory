@@ -20,10 +20,10 @@ RUN New-Item -ItemType Directory -Force C:/downloads,C:/tools/jdk,C:/tools/maven
     Expand-Archive "C:/downloads/maven.zip" -DestinationPath "C:/tools/maven"; `
     Expand-Archive "C:/downloads/gradle.zip" -DestinationPath "C:/tools/gradle"; `
     Expand-Archive "C:/downloads/powershell.zip" -DestinationPath "C:/PowerShell"; `
-    Invoke-WebRequest -UseBasicParsing -Uri 'https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.21.5/jackson-databind-2.21.5.jar' -OutFile 'C:/tools/gradle/gradle-8.13/lib/jackson-databind-2.16.1.jar'; `
-    if ((Get-FileHash -Algorithm SHA256 'C:/tools/gradle/gradle-8.13/lib/jackson-databind-2.16.1.jar').Hash.ToLowerInvariant() -ne '507418c0fafd38b2b2cfb704521630da613a8e4cc8381195a6f418017883e2c0') { throw 'jackson-databind SHA-256 mismatch' }; `
-    Invoke-WebRequest -UseBasicParsing -Uri 'https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-core/2.21.5/jackson-core-2.21.5.jar' -OutFile 'C:/tools/gradle/gradle-8.13/lib/jackson-core-2.16.1.jar'; `
-    if ((Get-FileHash -Algorithm SHA256 'C:/tools/gradle/gradle-8.13/lib/jackson-core-2.16.1.jar').Hash.ToLowerInvariant() -ne 'b64b5874162b503a0e58a8f7758266e8dd9f91bf49e3a59ae0b5f47589a231b7') { throw 'jackson-core SHA-256 mismatch' }; `
+    Invoke-WebRequest -UseBasicParsing -Uri 'https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.21.8/jackson-databind-2.21.8.jar' -OutFile 'C:/tools/gradle/gradle-8.13/lib/jackson-databind-2.16.1.jar'; `
+    if ((Get-FileHash -Algorithm SHA256 'C:/tools/gradle/gradle-8.13/lib/jackson-databind-2.16.1.jar').Hash.ToLowerInvariant() -ne 'ad77f2285717e2f34c319d988b7c85783a47d0b33f33a501d1fcbf196e61bbaa') { throw 'jackson-databind SHA-256 mismatch' }; `
+    Invoke-WebRequest -UseBasicParsing -Uri 'https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-core/2.21.8/jackson-core-2.21.8.jar' -OutFile 'C:/tools/gradle/gradle-8.13/lib/jackson-core-2.16.1.jar'; `
+    if ((Get-FileHash -Algorithm SHA256 'C:/tools/gradle/gradle-8.13/lib/jackson-core-2.16.1.jar').Hash.ToLowerInvariant() -ne '604ef7765013daf5cde192e40bc4c8412c4ca93f4aaf7bf8e9a62fad1e1026bb') { throw 'jackson-core SHA-256 mismatch' }; `
     Invoke-WebRequest -UseBasicParsing -Uri 'https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-annotations/2.21/jackson-annotations-2.21.jar' -OutFile 'C:/tools/gradle/gradle-8.13/lib/jackson-annotations-2.16.1.jar'; `
     if ((Get-FileHash -Algorithm SHA256 'C:/tools/gradle/gradle-8.13/lib/jackson-annotations-2.16.1.jar').Hash.ToLowerInvariant() -ne '53ca085f4a150f703f49e1aabd935bd03b43e1ea3d55d135438292af22cef56b') { throw 'jackson-annotations SHA-256 mismatch' }; `
     Invoke-WebRequest -UseBasicParsing -Uri 'https://repo1.maven.org/maven2/org/bouncycastle/bcprov-jdk18on/1.85/bcprov-jdk18on-1.85.jar' -OutFile 'C:/tools/gradle/gradle-8.13/lib/plugins/bcprov-jdk18on-1.78.1.jar'; `
