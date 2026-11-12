@@ -25,11 +25,6 @@ docker build -t plugins/artifactory  -f docker/Dockerfile .
 - Publish step is used to publish the Gradle project artifacts to the artifactory repositories.
 - `tasks` selects the Gradle tasks for both build and publish. Publish defaults to
   `publish` only when `tasks` is omitted.
-- Set `use_wrapper: "true"` to use the project's checked-in Gradle wrapper for
-  build and publish, preserving the Gradle version in `gradle-wrapper.properties`.
-  The project must include its wrapper files and make the selected distribution
-  available to the build. Omitting `use_wrapper`, or setting it to `"false"`,
-  retains the default use of the Gradle installation included in the image.
 - Authentication for Jfrog artifactory can be done using Username and Password or Access Token. Refer to below examples.
 - Additional build discard with below parameters can be done.
     - delete_artifacts: The flag to delete the artifacts, if not set will only delete build metadata.
