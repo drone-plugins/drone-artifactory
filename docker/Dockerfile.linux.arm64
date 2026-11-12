@@ -6,7 +6,8 @@ ENV GODEBUG netdns=go
 ENV CI=true
 
 ARG JRE_VERSION=openjdk-17-default-jdk
-ARG GRADLE_VERSION=8.13
+ARG GRADLE_VERSION=8.14.7
+ARG GRADLE_SHA256=903bfc4bc7622323124054c10f509246212a1902948bdaf26c379cca8735e856
 
 # Copy CA certificates
 COPY --from=alpine /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
@@ -30,21 +31,21 @@ COPY docker/update-java-trust.sh /etc/ca-certificates/update.d/zz-emudhra-java
 RUN chmod 0755 /etc/ca-certificates/update.d/zz-emudhra-java \
     && update-ca-certificates
 
-# Install Gradle
+# Gradle 8.14.7 bundles Bouncy Castle 1.85 and Commons Lang 3.18.0.
+# Apply the newer Jackson patches before committing the layer, retaining the
+# filenames required by Gradle's module classpaths.
 RUN mkdir -p /usr/local/bin /opt/gradle \
     && curl -fsSL https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip -o /tmp/gradle.zip \
+    && echo "${GRADLE_SHA256}  /tmp/gradle.zip" | sha256sum -c - \
     && unzip /tmp/gradle.zip -d /opt/gradle \
     && rm /tmp/gradle.zip \
+    && curl -fsSL https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.21.8/jackson-databind-2.21.8.jar -o /opt/gradle/gradle-${GRADLE_VERSION}/lib/jackson-databind-2.18.11.jar \
+    && echo "ad77f2285717e2f34c319d988b7c85783a47d0b33f33a501d1fcbf196e61bbaa  /opt/gradle/gradle-${GRADLE_VERSION}/lib/jackson-databind-2.18.11.jar" | sha256sum -c - \
+    && curl -fsSL https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-core/2.21.8/jackson-core-2.21.8.jar -o /opt/gradle/gradle-${GRADLE_VERSION}/lib/jackson-core-2.18.11.jar \
+    && echo "604ef7765013daf5cde192e40bc4c8412c4ca93f4aaf7bf8e9a62fad1e1026bb  /opt/gradle/gradle-${GRADLE_VERSION}/lib/jackson-core-2.18.11.jar" | sha256sum -c - \
+    && curl -fsSL https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-annotations/2.21/jackson-annotations-2.21.jar -o /opt/gradle/gradle-${GRADLE_VERSION}/lib/jackson-annotations-2.18.11.jar \
+    && echo "53ca085f4a150f703f49e1aabd935bd03b43e1ea3d55d135438292af22cef56b  /opt/gradle/gradle-${GRADLE_VERSION}/lib/jackson-annotations-2.18.11.jar" | sha256sum -c - \
     && ln -s /opt/gradle/gradle-${GRADLE_VERSION}/bin/gradle /usr/local/bin/gradle
-
-# Patch vulnerable jars bundled in Gradle (overwrite in place, keep original filenames for classpath compatibility)
-RUN curl -fsSL https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.21.8/jackson-databind-2.21.8.jar -o /opt/gradle/gradle-${GRADLE_VERSION}/lib/jackson-databind-2.16.1.jar \
-    && curl -fsSL https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-core/2.21.8/jackson-core-2.21.8.jar -o /opt/gradle/gradle-${GRADLE_VERSION}/lib/jackson-core-2.16.1.jar \
-    && curl -fsSL https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-annotations/2.21/jackson-annotations-2.21.jar -o /opt/gradle/gradle-${GRADLE_VERSION}/lib/jackson-annotations-2.16.1.jar \
-    && curl -fsSL https://repo1.maven.org/maven2/org/bouncycastle/bcprov-jdk18on/1.85/bcprov-jdk18on-1.85.jar -o /opt/gradle/gradle-${GRADLE_VERSION}/lib/plugins/bcprov-jdk18on-1.78.1.jar \
-    && curl -fsSL https://repo1.maven.org/maven2/org/bouncycastle/bcpg-jdk18on/1.85/bcpg-jdk18on-1.85.jar -o /opt/gradle/gradle-${GRADLE_VERSION}/lib/plugins/bcpg-jdk18on-1.78.1.jar \
-    && curl -fsSL https://repo1.maven.org/maven2/org/apache/commons/commons-lang3/3.18.0/commons-lang3-3.18.0.jar -o /opt/gradle/gradle-${GRADLE_VERSION}/lib/commons-lang3-3.14.0.jar
-
 
 # Install JFrog CLI (CVE-2026-39821: bumped to 2.115.0 for golang.org/x/net/idna improper authentication fix)
 RUN curl -fL https://getcli.jfrog.io/v2-jf | sh /dev/stdin 2.129.0
