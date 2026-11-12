@@ -57,8 +57,9 @@ type Args struct {
 	EnableProxy      string `envconfig:"PLUGIN_ENABLE_PROXY"`
 
 	// RT commands
-	BuildTool string `envconfig:"PLUGIN_BUILD_TOOL"`
-	Command   string `envconfig:"PLUGIN_COMMAND"`
+	BuildTool  string `envconfig:"PLUGIN_BUILD_TOOL"`
+	Command    string `envconfig:"PLUGIN_COMMAND"`
+	UseWrapper string `envconfig:"PLUGIN_USE_WRAPPER"`
 
 	// Mvn commands
 	ResolveReleaseRepo  string `envconfig:"PLUGIN_RESOLVE_RELEASE_REPO"`
