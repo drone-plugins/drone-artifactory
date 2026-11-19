@@ -8,8 +8,8 @@ SHELL ["powershell", "-NoLogo", "-NonInteractive", "-ExecutionPolicy", "Bypass",
 RUN New-Item -ItemType Directory -Force C:/downloads,C:/tools/jdk,C:/tools/maven,C:/tools/gradle,C:/PowerShell,C:/certificates | Out-Null; `
     Invoke-WebRequest -UseBasicParsing -Uri 'https://releases.jfrog.io/artifactory/jfrog-cli/v2/2.129.0/jfrog-cli-windows-amd64/jfrog.exe' -OutFile 'C:/downloads/jfrog.exe'; `
     if ((Get-FileHash -Algorithm SHA256 'C:/downloads/jfrog.exe').Hash.ToLowerInvariant() -ne 'f8fe4d2147369a8d5ecc2ec91cffffefb644999ccc21192d3a22b17c205f7ba1') { throw 'JFrog CLI SHA-256 mismatch' }; `
-    Invoke-WebRequest -UseBasicParsing -Uri 'https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.19%2B10/OpenJDK17U-jdk_x64_windows_hotspot_17.0.19_10.zip' -OutFile 'C:/downloads/jdk.zip'; `
-    if ((Get-FileHash -Algorithm SHA256 'C:/downloads/jdk.zip').Hash.ToLowerInvariant() -ne 'b5b235c48adf6a081874b812c630b9f4b5f637b7a5ed18b9174d08a41ec4c235') { throw 'Temurin SHA-256 mismatch' }; `
+    Invoke-WebRequest -UseBasicParsing -Uri 'https://aka.ms/download-jdk/microsoft-jdk-17.0.21.1-windows-x64.zip' -OutFile 'C:/downloads/jdk.zip'; `
+    if ((Get-FileHash -Algorithm SHA256 'C:/downloads/jdk.zip').Hash.ToLowerInvariant() -ne 'a07e270f86aec056d9c2acf981eb64a38e30814dacfadbc5f80f31c55d5a4427') { throw 'JDK SHA-256 mismatch' }; `
     Invoke-WebRequest -UseBasicParsing -Uri 'https://repo1.maven.org/maven2/org/apache/maven/apache-maven/3.9.11/apache-maven-3.9.11-bin.zip' -OutFile 'C:/downloads/maven.zip'; `
     if ((Get-FileHash -Algorithm SHA256 'C:/downloads/maven.zip').Hash.ToLowerInvariant() -ne '0d7125e8c91097b36edb990ea5934e6c68b4440eef4ea96510a0f6815e7eeadb') { throw 'Maven SHA-256 mismatch' }; `
     Invoke-WebRequest -UseBasicParsing -Uri 'https://services.gradle.org/distributions/gradle-8.14.7-bin.zip' -OutFile 'C:/downloads/gradle.zip'; `
@@ -29,9 +29,9 @@ RUN New-Item -ItemType Directory -Force C:/downloads,C:/tools/jdk,C:/tools/maven
     certutil -generateSSTFromWU C:/certificates/ca-certificates.sst | Out-Null; `
     Remove-Item C:/downloads/*.zip -Force
 
-# Remove the affected roots present in this pinned Temurin store (CVE-2026-114820).
-RUN foreach ($Alias in @('cn_emsign_root_ca__g1,o_emudhra_technologies_limited,ou_emsign_pki,c_in [jdk]', 'cn_emsign_ecc_root_ca__g3,o_emudhra_technologies_limited,ou_emsign_pki,c_in [jdk]')) { `
-    & 'C:/tools/jdk/jdk-17.0.19+10/bin/keytool.exe' -delete -cacerts -storepass changeit -noprompt -alias $Alias; `
+# Remove the affected roots present in this pinned JDK store (CVE-2026-114820).
+RUN foreach ($Alias in @('cn=emsign_root_ca_-_g1,o=emudhra_technologies_limited,ou=emsign_pki,c=in')) { `
+    & 'C:/tools/jdk/jdk-17.0.21.1+2/bin/keytool.exe' -delete -cacerts -storepass changeit -noprompt -alias $Alias; `
     if ($LASTEXITCODE -ne 0) { throw "Unable to remove affected Java root: $Alias" }; `
     }
 
@@ -48,12 +48,12 @@ COPY --from=builder C:/tools/gradle C:/tools/gradle
 COPY --from=builder C:/certificates C:/certificates
 COPY release/windows/amd64/plugin C:/bin/drone-artifactory.exe
 
-ENV JAVA_HOME=C:\\tools\\jdk\\jdk-17.0.19+10 `
+ENV JAVA_HOME=C:\\tools\\jdk\\jdk-17.0.21.1+2 `
     MAVEN_HOME=C:\\tools\\maven\\apache-maven-3.9.11 `
     GRADLE_HOME=C:\\tools\\gradle\\gradle-8.14.7 `
     CI=true `
     GODEBUG=netdns=go `
-    PATH="C:\\bin;C:\\PowerShell;C:\\tools\\jdk\\jdk-17.0.19+10\\bin;C:\\tools\\maven\\apache-maven-3.9.11\\bin;C:\\tools\\gradle\\gradle-8.14.7\\bin;C:\\Windows\\System32;C:\\Windows"
+    PATH="C:\\bin;C:\\PowerShell;C:\\tools\\jdk\\jdk-17.0.21.1+2\\bin;C:\\tools\\maven\\apache-maven-3.9.11\\bin;C:\\tools\\gradle\\gradle-8.14.7\\bin;C:\\Windows\\System32;C:\\Windows"
 
 LABEL org.opencontainers.image.source="https://github.com/drone-plugins/drone-artifactory" `
       io.harness.windows.build="26100"

@@ -5,7 +5,7 @@ FROM harness0.harness.io/oci/docker_artifacts/hhi/harnessos-alpine:1@sha256:290a
 ENV GODEBUG netdns=go
 ENV CI=true
 
-ARG JRE_VERSION=openjdk-17-default-jdk
+ARG JRE_VERSION=openjdk-17-default-jdk>=17.0.21.1
 ARG GRADLE_VERSION=8.14.7
 ARG GRADLE_SHA256=903bfc4bc7622323124054c10f509246212a1902948bdaf26c379cca8735e856
 
