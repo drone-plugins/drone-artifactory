@@ -1112,7 +1112,7 @@ pipeline:
                   identifier: Build_Binaries
                   spec:
                     connectorRef: HHI_Public_Images
-                    image: harness0.harness.io/oci/docker_artifacts/hhi/harnessos-alpine:1@sha256:290a37c85b4284d2c11fa0778e5da79643d912a1f5a57d6f701b77644503b7e7
+                    image: harness0.harness.io/oci/docker_artifacts/hhi/harnessos-alpine:1@sha256:8c517aa13410b6514b95bb3aa036af5317d46e4808f29e33d75a831f5efa2073
                     shell: Sh
                     command: |-
                       export PATH="$PWD/.hhi-go-toolchain/bin:$PATH" GOPATH=/go GOTOOLCHAIN=local
